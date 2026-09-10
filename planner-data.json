@@ -54,6 +54,16 @@
       "start": "2027-07-19",
       "end": "2027-08-02",
       "abono": false
+    },
+    {
+      "pid": "custom_1789074346030_1",
+      "name": "Diana Dalzy Viveiros",
+      "vinculo": "FIOTEC",
+      "plataforma": "Nanoformulaçao",
+      "start": "2028-03-02",
+      "end": "2028-03-16",
+      "abono": false,
+      "inactive": true
     }
   ],
   "customEmployees": [],
@@ -65,5 +75,5 @@
   "settings": {
     "time": "09:30"
   },
-  "savedAt": "2026-09-10T20:51:50.431Z"
+  "savedAt": "2026-09-10T21:10:58.801Z"
 }
