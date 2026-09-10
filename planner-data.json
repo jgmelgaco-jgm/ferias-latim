@@ -1,8 +1,25 @@
 {
-  "customPeriods": [],
+  "customPeriods": [
+    {
+      "name": "Ryann de Souza Nascimento",
+      "vinculo": "FIOTEC",
+      "plataforma": "Operacional",
+      "start": "2027-07-19",
+      "end": "2027-08-02"
+    },
+    {
+      "name": "Ryann de Souza Nascimento",
+      "vinculo": "FIOTEC",
+      "plataforma": "Operacional",
+      "start": "2027-12-06",
+      "end": "2027-12-20"
+    }
+  ],
   "customEmployees": [],
   "rowOverrides": {},
   "excludedIds": {},
-  "settings": { "time": "09:30" },
-  "savedAt": null
+  "settings": {
+    "time": "09:30"
+  },
+  "savedAt": "2026-09-10T19:49:31.991Z"
 }
