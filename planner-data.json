@@ -25,6 +25,24 @@
       "start": "2027-05-16",
       "end": "2027-05-25",
       "abono": true
+    },
+    {
+      "pid": "custom_1789073170282_1",
+      "name": "Luciana Neves Tubarão",
+      "vinculo": "REAL",
+      "plataforma": "Ensaios Funcionais",
+      "start": "2027-01-25",
+      "end": "2027-02-03",
+      "abono": false
+    },
+    {
+      "pid": "custom_1789073229274_2",
+      "name": "Luciana Neves Tubarão",
+      "vinculo": "REAL",
+      "plataforma": "Ensaios Funcionais",
+      "start": "2027-06-02",
+      "end": "2027-06-21",
+      "abono": false
     }
   ],
   "customEmployees": [],
@@ -36,5 +54,5 @@
   "settings": {
     "time": "09:30"
   },
-  "savedAt": "2026-09-10T20:42:05.565Z"
+  "savedAt": "2026-09-10T20:48:10.668Z"
 }
