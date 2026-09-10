@@ -446,7 +446,7 @@
   <select id="platformSelect">
     <option value="ALL">Todas as plataformas</option>
   </select>
-  <input type="text" id="searchInput" class="grow" placeholder="Buscar colaborador…">
+  <input type="text" id="searchInput" class="grow" placeholder="Buscar colaborador…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="latim-search-filter">
   <button class="pill-btn" id="btnIcs">Exportar lembretes (.ics)</button>
   <button class="pill-btn" id="btnExport">Exportar solicitação</button>
 </div>
@@ -550,7 +550,7 @@
 
     <div class="field" style="margin-top:14px;">
       <label>Token de acesso do GitHub (fine-grained, só para este repositório)</label>
-      <input type="password" id="ghToken" placeholder="github_pat_…">
+      <input type="password" id="ghToken" placeholder="github_pat_…" autocomplete="new-password" name="latim-gh-access-token" data-lpignore="true" data-1p-ignore="true">
     </div>
     <div class="field" style="display:flex; align-items:center; gap:7px;">
       <input type="checkbox" id="ghRemember" style="width:auto;">
@@ -599,7 +599,7 @@
     <h3>Gerenciar colaboradores</h3>
     <p class="sub">Mova alguém para outra plataforma ou vínculo, exclua da visualização ou cadastre uma nova pessoa (sem período de férias ainda).</p>
     <div class="manage-toolbar">
-      <input type="text" id="manageSearch" placeholder="Buscar…">
+      <input type="text" id="manageSearch" placeholder="Buscar…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="latim-manage-search">
       <button class="pill-btn primary" id="btnNewEmployeeRow">+ Novo colaborador</button>
     </div>
     <div class="manage-section-title">Ativos</div>
