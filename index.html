@@ -265,6 +265,10 @@
     background:repeating-linear-gradient(135deg,#F4F1E7,#F4F1E7 6px,#ECE7D6 6px,#ECE7D6 12px);
     border:1px dashed #C9B979; color:#8A742A; justify-content:center;
   }
+  .bar.abono{
+    background:repeating-linear-gradient(135deg,#EFEFEF,#EFEFEF 6px,#E2E2E2 6px,#E2E2E2 12px);
+    border:1px dashed #9AA0A6; color:#5A6066;
+  }
 
   .today-line{
     position:absolute; top:0; bottom:0; width:2px; background:var(--lab);
@@ -331,6 +335,12 @@
   }
   .manage-row:last-child{ border-bottom:none; }
   .manage-row input, .manage-row select{ width:100%; font-size:12.5px; padding:6px 8px; }
+  .manage-name-btn{
+    width:100%; text-align:left; font-size:12.8px; font-weight:600; color:var(--lab-dark);
+    background:none; border:none; padding:6px 4px; cursor:pointer; border-radius:6px;
+    text-decoration:underline; text-decoration-color:transparent; transition:text-decoration-color .15s;
+  }
+  .manage-name-btn:hover{ text-decoration-color:var(--lab-dark); background:#F1F8F7; }
   .manage-row .rm-btn{
     border:1px solid var(--line); background:#fff; color:var(--alert);
     width:28px; height:28px; border-radius:7px; cursor:pointer; font-size:14px; line-height:1;
@@ -376,8 +386,25 @@
   .period-block{ margin-bottom:10px; }
   .period-title{ font-size:12px; font-weight:600; color:var(--ink); margin-bottom:6px; }
   .period-title .optional{ font-weight:400; color:var(--ink-soft); font-size:11px; }
-  #existingDaysNote{ margin-bottom:12px; }
   #totalDaysNote{ margin-top:2px; }
+  #existingPeriodsWrap{ margin-bottom:14px; }
+  .edit-period-row{
+    display:flex; align-items:center; gap:6px;
+    padding:7px 8px; border:1px solid var(--line-soft); border-radius:8px; margin-bottom:6px;
+    background:#FAFCFB;
+  }
+  .edit-period-row input[type=date]{ font-size:12px; padding:5px 6px; flex:1; min-width:0; }
+  .edit-period-row .ep-sep{ color:var(--ink-soft); font-size:11px; }
+  .edit-period-row .ep-abono{
+    display:flex; align-items:center; gap:4px; font-size:11px; color:var(--ink-soft);
+    white-space:nowrap; flex:0 0 auto;
+  }
+  .edit-period-row .ep-abono input{ width:auto; }
+  .edit-period-row .ep-remove{
+    border:1px solid var(--line); background:#fff; color:var(--alert);
+    width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:13px; line-height:1; flex:0 0 auto;
+  }
+  .edit-period-row .ep-remove:hover{ background:var(--alert-bg); }
   .note.warn{ background:var(--pend-bg); border-color:#EAD9A6; color:#7A5B1E; }
   .note.bad{ background:var(--alert-bg); border-color:#E3B3A9; color:var(--alert); }
   .note.good{ background:var(--ok-bg); border-color:#BFE0CB; color:var(--ok); }
@@ -395,7 +422,7 @@
       <span class="save-status" id="saveStatus">Ainda não publicado neste site</span>
       <button class="pill-btn" id="btnSettings"><span class="dot off" id="notifDot"></span> Lembretes</button>
       <button class="pill-btn" id="btnManage">Gerenciar colaboradores</button>
-      <button class="pill-btn primary" id="btnAdd">+ Adicionar período</button>
+      <button class="pill-btn primary" id="btnAdd">Períodos de férias</button>
       <button class="pill-btn save" id="btnSave">💾 Salvar alterações</button>
     </div>
   </div>
@@ -436,11 +463,11 @@
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast"></div>
 
-<!-- Modal: adicionar período -->
+<!-- Modal: períodos de férias -->
 <div class="modal-backdrop" id="addModal">
   <div class="modal">
-    <h3>Adicionar período de férias</h3>
-    <p class="sub">Busque o colaborador, informe até 2 períodos e confira o total de dias.</p>
+    <h3>Períodos de férias</h3>
+    <p class="sub">Busque o colaborador para ver, editar ou lançar períodos — inclui abono pecuniário (venda de dias).</p>
 
     <div class="field" id="addSearchField">
       <label>Colaborador</label>
@@ -455,6 +482,7 @@
       </div>
 
       <div id="newEmployeeFields" style="display:none;">
+        <div class="field"><label>Nome</label><input type="text" id="newEmpName" placeholder="Nome completo"></div>
         <div class="field-row">
           <div class="field"><label>Vínculo</label>
             <select id="newVinculo"><option value="REAL">Real</option><option value="FIOTEC">Fiotec</option></select>
@@ -463,29 +491,25 @@
         </div>
       </div>
 
-      <div class="note" id="existingDaysNote" style="display:none;"></div>
+      <div id="existingPeriodsWrap" style="display:none;">
+        <div class="period-title">Períodos cadastrados <span class="optional">(edite datas, marque abono ou remova)</span></div>
+        <div id="existingPeriodsList"></div>
+      </div>
 
       <div class="period-block">
-        <div class="period-title">Período 1</div>
+        <div class="period-title">Adicionar novo período</div>
         <div class="field-row">
-          <div class="field"><label>Início</label><input type="date" id="p1Start" min="2026-01-01" max="2027-12-31"></div>
-          <div class="field"><label>Fim</label><input type="date" id="p1End" min="2026-01-01" max="2027-12-31"></div>
+          <div class="field"><label>Início</label><input type="date" id="newPStart" min="2026-01-01" max="2027-12-31"></div>
+          <div class="field"><label>Fim</label><input type="date" id="newPEnd" min="2026-01-01" max="2027-12-31"></div>
         </div>
-      </div>
-      <div class="period-block">
-        <div class="period-title">Período 2 <span class="optional">(opcional — só se a folga for dividida)</span></div>
-        <div class="field-row">
-          <div class="field"><label>Início</label><input type="date" id="p2Start" min="2026-01-01" max="2027-12-31"></div>
-          <div class="field"><label>Fim</label><input type="date" id="p2End" min="2026-01-01" max="2027-12-31"></div>
-        </div>
+        <button type="button" class="btn-ghost" id="addOnePeriod" style="width:100%; margin-top:4px;">+ Adicionar período</button>
       </div>
 
       <div class="note" id="totalDaysNote"></div>
     </div>
 
     <div class="modal-actions">
-      <button class="btn-ghost" id="cancelAdd">Cancelar</button>
-      <button class="btn-solid" id="confirmAdd">Adicionar</button>
+      <button class="btn-solid" id="cancelAdd">Fechar</button>
     </div>
   </div>
 </div>
@@ -651,10 +675,11 @@ const SPECIAL_TRIO = ["Guillermo","Milena","Peterson"];
 const MONTHS = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
 RAW_DATA.forEach((r,i)=>{ r.id = "base_"+i; });
 
-let customPeriods = [];   // {name, vinculo, plataforma, start, end}
+let customPeriods = [];   // {pid, name, vinculo, plataforma, start, end, abono?, inactive?}
 let customEmployees = []; // {id, name, vinculo, plataforma} — pessoas incluídas sem período ainda
 let rowOverrides = {};    // baseRowId -> {vinculo?, plataforma?}
 let excludedIds = {};     // rowId -> true (colaborador excluído da visualização)
+let periodOverrides = {}; // "baseRowId#index" -> {start?, end?, abono?, inactive?} — edição de período original da planilha
 let state = { vinculo: "ALL", platform: "ALL", search: "", isolatedPlatform: null };
 let idCounter = 0;
 function newId(){ idCounter++; return "custom_"+Date.now()+"_"+idCounter; }
@@ -701,14 +726,33 @@ function allRowsRaw(){
 }
 function workingRows(){ return allRowsRaw().filter(r=>!r.excluded); }
 
+// Junta períodos base (planilha original, com possíveis edições) + períodos lançados no app,
+// já excluindo os removidos. Cada item vem com origin/key (para editar) e abono (sinaliza abono pecuniário).
+function getPeriodsForRow(row){
+  const list = [];
+  row.periods.forEach((p,idx)=>{
+    const key = `${row.id}#${idx}`;
+    const ov = periodOverrides[key];
+    if(ov && ov.inactive) return;
+    list.push({
+      key, origin:"base",
+      start: (ov && ov.start) || p.start,
+      end: (ov && ov.end) || p.end,
+      abono: !!(ov && ov.abono)
+    });
+  });
+  customPeriods.filter(cp=>cp.name===row.name).forEach(cp=>{
+    if(cp.inactive) return;
+    list.push({ key: cp.pid, origin:"custom", start: cp.start, end: cp.end, abono: !!cp.abono });
+  });
+  return list;
+}
+
 function allEntries(){
   const list = [];
   workingRows().forEach(row=>{
-    row.periods.forEach(p=>{
-      list.push({name:row.name, vinculo:row.vinculo, plataforma:row.plataforma, start:p.start, end:p.end, carry:p.carry, custom:false});
-    });
-    customPeriods.filter(cp=>cp.name===row.name).forEach(p=>{
-      list.push({...p, plataforma:row.plataforma, vinculo:row.vinculo, custom:true});
+    getPeriodsForRow(row).filter(p=>!p.abono).forEach(p=>{
+      list.push({name:row.name, vinculo:row.vinculo, plataforma:row.plataforma, start:p.start, end:p.end});
     });
   });
   return list;
@@ -831,9 +875,8 @@ function renderBoard(){
       track.className = "track";
       for(let i=0;i<12;i++){ const c=document.createElement("div"); c.className="gcell"; track.appendChild(c); }
 
-      // periods: base + custom for this name
-      const periods = r.periods.map(p=>({...p}))
-        .concat(customPeriods.filter(cp=>cp.name===r.name).map(cp=>({start:cp.start,end:cp.end,carry:false})));
+      // períodos: base (com edições) + lançados no app, já sem os removidos
+      const periods = getPeriodsForRow(r);
 
       if(periods.length===0 && r.status==="Pendente"){
         const bar = document.createElement("div");
@@ -850,14 +893,16 @@ function renderBoard(){
         const total = daysInYear(YEAR);
         const left = (dayOfYear(clipStart)-1)/total*100;
         const width = Math.max((dayOfYear(clipEnd)-dayOfYear(clipStart)+1)/total*100, 1.2);
-        const isConflict = conflictKeys.has(r.name+"|"+p.start+"|"+p.end);
+        const isConflict = !p.abono && conflictKeys.has(r.name+"|"+p.start+"|"+p.end);
         const bar = document.createElement("div");
-        bar.className = "bar" + (isConflict? " conflict":"");
+        bar.className = "bar" + (isConflict? " conflict":"") + (p.abono ? " abono":"");
         bar.style.left = left+"%";
         bar.style.width = width+"%";
-        bar.style.background = platColor(platform);
-        bar.style.borderColor = platBorder(platform);
-        bar.innerHTML = `<span class="plat-badge">${platBadge(platform)}</span>${fmtBR(p.start)}–${fmtBR(p.end)}`;
+        if(!p.abono){
+          bar.style.background = platColor(platform);
+          bar.style.borderColor = platBorder(platform);
+        }
+        bar.innerHTML = `<span class="plat-badge">${platBadge(platform)}</span>${p.abono?'Abono: ':''}${fmtBR(p.start)}–${fmtBR(p.end)}`;
         bar.addEventListener("mousemove", (ev)=>showTooltip(ev, r.name, platform, p, isConflict));
         bar.addEventListener("mouseleave", hideTooltip);
         track.appendChild(bar);
@@ -883,7 +928,8 @@ function renderBoard(){
 function showTooltip(ev, name, platform, p, isConflict){
   const tip = document.getElementById("tooltip");
   let extra = "";
-  if(p.carry) extra = "<br>Início no ano anterior.";
+  if(parseISO(p.start).getFullYear() < YEAR) extra = "<br>Início no ano anterior.";
+  if(p.abono) extra += "<br>Abono pecuniário — não conta como ausência.";
   if(isConflict) extra += "<br><b style='color:#FFB199'>Sobreposição acima de 7 dias detectada.</b>";
   tip.innerHTML = `<b>${name}</b><br>${platform}<br>${fmtBR(p.start)} → ${fmtBR(p.end)}${extra}`;
   tip.style.display = "block";
@@ -944,18 +990,14 @@ document.getElementById("searchInput").addEventListener("input",(e)=>{
   renderAll();
 });
 
-// ---------- add period modal ----------
+// ---------- modal: períodos de férias (ver / editar / adicionar) ----------
 const addModal = document.getElementById("addModal");
-let addSelected = null; // {mode:'existing'|'new', id, name, vinculo, plataforma}
+let addSelected = null; // {id, name, isCustom}
 
 function daysOfPeriod(p){ return Math.round((parseISO(p.end)-parseISO(p.start))/86400000)+1; }
 function sumDays(periods){ return periods.reduce((s,p)=>s+daysOfPeriod(p),0); }
 function periodsOverlap(a,b){
   return parseISO(a.start) <= parseISO(b.end) && parseISO(b.start) <= parseISO(a.end);
-}
-function existingPeriodsForRow(row){
-  return row.periods.map(p=>({start:p.start,end:p.end}))
-    .concat(customPeriods.filter(cp=>cp.name===row.name).map(cp=>({start:cp.start,end:cp.end})));
 }
 
 function resetAddModal(){
@@ -966,9 +1008,10 @@ function resetAddModal(){
   document.getElementById("addSearchField").style.display = "block";
   document.getElementById("addSelectedBox").style.display = "none";
   document.getElementById("newEmployeeFields").style.display = "none";
-  document.getElementById("newPlataforma").value = "";
-  ["p1Start","p1End","p2Start","p2End"].forEach(id=> document.getElementById(id).value = "");
-  document.getElementById("existingDaysNote").style.display = "none";
+  document.getElementById("existingPeriodsWrap").style.display = "none";
+  document.getElementById("existingPeriodsList").innerHTML = "";
+  document.getElementById("newPStart").value = "";
+  document.getElementById("newPEnd").value = "";
   document.getElementById("totalDaysNote").textContent = "";
   document.getElementById("totalDaysNote").className = "note";
 }
@@ -984,45 +1027,41 @@ function renderAddSearchResults(query){
   box.classList.add("open");
   box.querySelectorAll(".search-result-item").forEach(item=>{
     item.addEventListener("click", ()=>{
-      if(item.dataset.new){
-        selectNewEmployee(query.trim());
-      } else {
-        const row = workingRows().find(r=>r.id===item.dataset.id);
-        selectExistingEmployee(row);
-      }
+      if(item.dataset.new){ selectNewEmployeeFlow(query.trim()); }
+      else { const row = workingRows().find(r=>r.id===item.dataset.id); selectRow(row); }
     });
   });
 }
 
-function selectExistingEmployee(row){
-  addSelected = {mode:"existing", id:row.id, name:row.name, vinculo:row.vinculo, plataforma:row.plataforma};
+function selectRow(row){
+  addSelected = {id:row.id, name:row.name, isCustom:!!row.isCustom};
   document.getElementById("addSearchField").style.display = "none";
   document.getElementById("addSelectedBox").style.display = "block";
   document.getElementById("addSelectedName").textContent = `${row.name} — ${row.plataforma} (${row.vinculo})`;
-  document.getElementById("newEmployeeFields").style.display = "none";
 
-  const existing = existingPeriodsForRow(row);
-  const noteEl = document.getElementById("existingDaysNote");
-  if(existing.length===0){
-    noteEl.style.display = "none";
+  const newFields = document.getElementById("newEmployeeFields");
+  if(row.isCustom){
+    newFields.style.display = "block";
+    document.getElementById("newEmpName").value = row.name;
+    document.getElementById("newVinculo").value = row.vinculo;
+    document.getElementById("newPlataforma").value = row.plataforma;
   } else {
-    const totalExisting = sumDays(existing);
-    const list = existing.map(p=>`${fmtBR(p.start)}–${fmtBR(p.end)}`).join(", ");
-    noteEl.style.display = "block";
-    noteEl.className = "note";
-    noteEl.textContent = `Já cadastrado: ${totalExisting} dia(s) em ${existing.length} período(s) — ${list}.`;
+    newFields.style.display = "none";
   }
+
+  renderExistingPeriodsList();
   recomputeAddTotal();
 }
 
-function selectNewEmployee(name){
-  addSelected = {mode:"new", name, vinculo:"REAL", plataforma:""};
-  document.getElementById("addSearchField").style.display = "none";
-  document.getElementById("addSelectedBox").style.display = "block";
-  document.getElementById("addSelectedName").textContent = `${name} (novo colaborador)`;
-  document.getElementById("newEmployeeFields").style.display = "block";
-  document.getElementById("existingDaysNote").style.display = "none";
-  recomputeAddTotal();
+async function selectNewEmployeeFlow(name){
+  const id = newId();
+  customEmployees.push({id, name, vinculo:"REAL", plataforma: PLATFORM_ORDER[0]});
+  markDirty();
+  await saveState();
+  renderAll();
+  const row = workingRows().find(r=>r.id===id);
+  selectRow(row);
+  showToast("Colaborador incluído — confira a plataforma abaixo.");
 }
 
 document.getElementById("addClearSelection").onclick = ()=>{
@@ -1030,111 +1069,154 @@ document.getElementById("addClearSelection").onclick = ()=>{
   document.getElementById("addSearchInput").focus();
 };
 
+document.getElementById("newEmpName").addEventListener("change", async ()=>{
+  if(!addSelected || !addSelected.isCustom) return;
+  const emp = customEmployees.find(e=>e.id===addSelected.id);
+  if(!emp) return;
+  const newName = document.getElementById("newEmpName").value.trim();
+  if(!newName){ showToast("Nome não pode ficar vazio."); document.getElementById("newEmpName").value = emp.name; return; }
+  const oldName = emp.name;
+  if(newName !== oldName){
+    emp.name = newName;
+    customPeriods.filter(cp=>cp.name===oldName).forEach(cp=> cp.name = newName);
+    addSelected.name = newName;
+    document.getElementById("addSelectedName").textContent = `${newName} — ${emp.plataforma} (${emp.vinculo})`;
+    markDirty();
+    await saveState();
+    renderAll();
+  }
+});
+document.getElementById("newVinculo").addEventListener("change", async ()=>{
+  if(!addSelected || !addSelected.isCustom) return;
+  const emp = customEmployees.find(e=>e.id===addSelected.id);
+  if(emp){ emp.vinculo = document.getElementById("newVinculo").value; markDirty(); await saveState(); renderAll(); }
+});
+document.getElementById("newPlataforma").addEventListener("change", async ()=>{
+  if(!addSelected || !addSelected.isCustom) return;
+  const emp = customEmployees.find(e=>e.id===addSelected.id);
+  if(emp){ emp.plataforma = document.getElementById("newPlataforma").value.trim(); markDirty(); await saveState(); renderAll(); }
+});
+
+function renderExistingPeriodsList(){
+  const wrap = document.getElementById("existingPeriodsWrap");
+  const list = document.getElementById("existingPeriodsList");
+  if(!addSelected){ wrap.style.display="none"; return; }
+  const row = workingRows().find(r=>r.id===addSelected.id);
+  if(!row){ wrap.style.display="none"; return; }
+  const periods = getPeriodsForRow(row);
+  if(periods.length===0){ wrap.style.display="none"; list.innerHTML=""; return; }
+  wrap.style.display = "block";
+  list.innerHTML = periods.map(p=>`
+    <div class="edit-period-row" data-key="${p.key}" data-origin="${p.origin}">
+      <input type="date" class="ep-start" value="${p.start}" min="2026-01-01" max="2027-12-31">
+      <span class="ep-sep">a</span>
+      <input type="date" class="ep-end" value="${p.end}" min="2026-01-01" max="2027-12-31">
+      <label class="ep-abono"><input type="checkbox" class="ep-abono-cb" ${p.abono?'checked':''}> Abono</label>
+      <button type="button" class="ep-remove" title="Remover período">×</button>
+    </div>`).join("");
+  list.querySelectorAll(".edit-period-row").forEach(rowEl=>{
+    const key = rowEl.dataset.key, origin = rowEl.dataset.origin;
+    rowEl.querySelector(".ep-start").addEventListener("change", (e)=> updatePeriod(origin, key, {start:e.target.value}));
+    rowEl.querySelector(".ep-end").addEventListener("change", (e)=> updatePeriod(origin, key, {end:e.target.value}));
+    rowEl.querySelector(".ep-abono-cb").addEventListener("change", (e)=> updatePeriod(origin, key, {abono:e.target.checked}));
+    rowEl.querySelector(".ep-remove").addEventListener("click", ()=>{
+      if(confirm("Remover este período? A ação não pode ser desfeita por aqui.")) updatePeriod(origin, key, {inactive:true});
+    });
+  });
+}
+
+const ABONO_LIMIT_DAYS = 10;
+
+async function updatePeriod(origin, key, changes){
+  const row = workingRows().find(r=>r.id===addSelected.id);
+  const periods = getPeriodsForRow(row);
+  const current = periods.find(p=>p.key===key);
+  if(!current) return;
+  const next = {...current, ...changes};
+  if(!changes.inactive && parseISO(next.end) < parseISO(next.start)){
+    showToast("Data de fim antes do início — alteração ignorada.");
+    renderExistingPeriodsList();
+    return;
+  }
+  if(!changes.inactive && next.abono){
+    const otherAbonoDays = sumDays(periods.filter(p=>p.abono && p.key!==key).map(p=>({start:p.start,end:p.end})));
+    const thisDays = daysOfPeriod(next);
+    if(otherAbonoDays + thisDays > ABONO_LIMIT_DAYS){
+      showToast(`Abono não pode passar de ${ABONO_LIMIT_DAYS} dias por lei — esse período ficaria em ${otherAbonoDays + thisDays} dias.`);
+      renderExistingPeriodsList();
+      return;
+    }
+  }
+  if(origin==="base"){
+    periodOverrides[key] = { start: next.start, end: next.end, abono: next.abono, inactive: !!changes.inactive || !!(periodOverrides[key]&&periodOverrides[key].inactive) };
+  } else {
+    const cp = customPeriods.find(c=>c.pid===key);
+    if(cp){
+      cp.start = next.start; cp.end = next.end; cp.abono = next.abono;
+      if(changes.inactive) cp.inactive = true;
+    }
+  }
+  markDirty();
+  await saveState();
+  renderExistingPeriodsList();
+  recomputeAddTotal();
+  renderAll();
+}
+
 function recomputeAddTotal(){
   const noteEl = document.getElementById("totalDaysNote");
   if(!addSelected){ noteEl.textContent=""; noteEl.className="note"; return; }
-
-  const existing = addSelected.mode==="existing"
-    ? existingPeriodsForRow(workingRows().find(r=>r.id===addSelected.id))
-    : [];
-  const existingTotal = sumDays(existing);
-
-  const p1s = document.getElementById("p1Start").value, p1e = document.getElementById("p1End").value;
-  const p2s = document.getElementById("p2Start").value, p2e = document.getElementById("p2End").value;
-
-  let parts = [`já cadastrado: ${existingTotal}d`];
-  let newPeriods = [];
-  let error = null;
-
-  if(p1s && p1e){
-    if(parseISO(p1e) < parseISO(p1s)) error = "Período 1: data de fim antes do início.";
-    else { const d = daysOfPeriod({start:p1s,end:p1e}); newPeriods.push({start:p1s,end:p1e}); parts.push(`período 1: ${d}d`); }
-  } else if(p1s || p1e){
-    error = "Período 1: preencha início e fim.";
-  }
-
-  if(!error && (p2s || p2e)){
-    if(!(p2s && p2e)) error = "Período 2: preencha início e fim, ou deixe os dois vazios.";
-    else if(parseISO(p2e) < parseISO(p2s)) error = "Período 2: data de fim antes do início.";
-    else {
-      const d = daysOfPeriod({start:p2s,end:p2e});
-      const cand = {start:p2s,end:p2e};
-      if(newPeriods.length && periodsOverlap(newPeriods[0],cand)) error = "Período 1 e Período 2 se sobrepõem.";
-      else { newPeriods.push(cand); parts.push(`período 2: ${d}d`); }
-    }
-  }
-
-  if(error){
-    noteEl.textContent = error;
-    noteEl.className = "note bad";
-    return;
-  }
-
-  const newTotal = sumDays(newPeriods);
-  const grandTotal = existingTotal + newTotal;
-  const diff = 30 - grandTotal;
-  let status;
-  if(newPeriods.length===0){
-    status = "Informe pelo menos o período 1.";
-    noteEl.textContent = parts.join(" · ") + ` — ${status}`;
+  const row = workingRows().find(r=>r.id===addSelected.id);
+  if(!row){ noteEl.textContent=""; noteEl.className="note"; return; }
+  const periods = getPeriodsForRow(row);
+  if(periods.length===0){
+    noteEl.textContent = "Nenhum período cadastrado ainda — lance um abaixo.";
     noteEl.className = "note";
     return;
   }
-  if(diff===0) status = `Total: ${grandTotal} dias — fecha os 30 dias.`;
-  else if(diff>0) status = `Total: ${grandTotal} dias — faltam ${diff} dia(s) para completar 30.`;
-  else status = `Total: ${grandTotal} dias — ${-diff} dia(s) a mais que os 30 permitidos.`;
+  const total = sumDays(periods.map(p=>({start:p.start,end:p.end})));
+  const abonoPeriods = periods.filter(p=>p.abono);
+  const abonoTotal = sumDays(abonoPeriods.map(p=>({start:p.start,end:p.end})));
+  const diff = 30 - total;
+  let status = diff===0 ? `Total: ${total} dias — fecha os 30 dias.`
+    : diff>0 ? `Total: ${total} dias — faltam ${diff} dia(s) para completar 30.`
+    : `Total: ${total} dias — ${-diff} dia(s) a mais que os 30 permitidos.`;
 
-  noteEl.textContent = parts.join(" · ") + " · " + status;
-  noteEl.className = diff===0 ? "note good" : (diff>0 ? "note warn" : "note bad");
+  let className = diff===0 ? "note good" : (diff>0 ? "note warn" : "note bad");
+
+  if(abonoTotal>0){
+    const ranges = abonoPeriods.map(p=>`${fmtBR(p.start)}–${fmtBR(p.end)}`).join(", ");
+    status += ` · Abono: ${abonoTotal}/${ABONO_LIMIT_DAYS} dias (${ranges})`;
+    if(abonoTotal > ABONO_LIMIT_DAYS) className = "note bad";
+  }
+
+  noteEl.textContent = status;
+  noteEl.className = className;
 }
 
 document.getElementById("addSearchInput").addEventListener("input",(e)=> renderAddSearchResults(e.target.value));
-["p1Start","p1End","p2Start","p2End"].forEach(id=>{
-  document.getElementById(id).addEventListener("change", recomputeAddTotal);
-});
 
 document.getElementById("btnAdd").onclick = ()=>{ resetAddModal(); addModal.classList.add("open"); };
 document.getElementById("cancelAdd").onclick = ()=> addModal.classList.remove("open");
 
-document.getElementById("confirmAdd").onclick = async ()=>{
+document.getElementById("addOnePeriod").onclick = async ()=>{
   if(!addSelected){ showToast("Busque e selecione um colaborador."); return; }
+  const s = document.getElementById("newPStart").value, e = document.getElementById("newPEnd").value;
+  if(!s || !e){ showToast("Informe início e fim."); return; }
+  if(parseISO(e) < parseISO(s)){ showToast("Fim antes do início."); return; }
+  const row = workingRows().find(r=>r.id===addSelected.id);
+  const overlapping = getPeriodsForRow(row).some(p=>periodsOverlap(p, {start:s,end:e}));
+  if(overlapping){ showToast("Esse período se sobrepõe a um já cadastrado."); return; }
 
-  const p1s = document.getElementById("p1Start").value, p1e = document.getElementById("p1End").value;
-  const p2s = document.getElementById("p2Start").value, p2e = document.getElementById("p2End").value;
-  if(!p1s || !p1e){ showToast("Informe o período 1."); return; }
-  if(parseISO(p1e) < parseISO(p1s)){ showToast("Período 1: fim antes do início."); return; }
-  const periodsToAdd = [{start:p1s,end:p1e}];
-  if(p2s || p2e){
-    if(!(p2s && p2e)){ showToast("Período 2: preencha início e fim, ou deixe vazio."); return; }
-    if(parseISO(p2e) < parseISO(p2s)){ showToast("Período 2: fim antes do início."); return; }
-    if(periodsOverlap(periodsToAdd[0], {start:p2s,end:p2e})){ showToast("Período 1 e 2 se sobrepõem."); return; }
-    periodsToAdd.push({start:p2s,end:p2e});
-  }
-
-  let name, vinculo, plataforma;
-  if(addSelected.mode==="new"){
-    name = addSelected.name;
-    vinculo = document.getElementById("newVinculo").value;
-    plataforma = document.getElementById("newPlataforma").value.trim();
-    if(!plataforma){ showToast("Informe a plataforma do novo colaborador."); return; }
-    if(!workingRows().some(r=>r.name===name)){
-      customEmployees.push({id:newId(), name, vinculo, plataforma});
-    }
-  } else {
-    name = addSelected.name; vinculo = addSelected.vinculo; plataforma = addSelected.plataforma;
-  }
-
-  periodsToAdd.forEach(p=> customPeriods.push({name, vinculo, plataforma, start:p.start, end:p.end}));
+  customPeriods.push({pid:newId(), name:row.name, vinculo:row.vinculo, plataforma:row.plataforma, start:s, end:e, abono:false});
   markDirty();
   await saveState();
-  addModal.classList.remove("open");
+  document.getElementById("newPStart").value = "";
+  document.getElementById("newPEnd").value = "";
+  renderExistingPeriodsList();
+  recomputeAddTotal();
   renderAll();
-
-  const existing = addSelected.mode==="existing" ? existingPeriodsForRow(workingRows().find(r=>r.id===addSelected.id)) : [];
-  const total = sumDays(existing); // existing already includes what we just pushed, since workingRows/customPeriods are live
-  const diff = 30 - total;
-  const flag = diff===0 ? "30 dias completos." : (diff>0 ? `faltam ${diff} dia(s).` : `${-diff} dia(s) a mais que 30.`);
-  showToast(`${periodsToAdd.length} período(s) adicionado(s) — total ${total} dias, ${flag}`);
+  showToast("Período adicionado.");
 };
 
 // ---------- manage employees modal ----------
@@ -1164,12 +1246,9 @@ function renderManageModal(){
 }
 
 function manageRowHTML(r, isExcluded){
-  const nameField = r.isCustom
-    ? `<input type="text" data-field="name" value="${r.name.replace(/"/g,'&quot;')}">`
-    : `<input type="text" value="${r.name.replace(/"/g,'&quot;')}" disabled title="Nome original da planilha — não editável">`;
   return `
     <div class="manage-row${isExcluded?' excluded':''}" data-id="${r.id}">
-      ${nameField}
+      <button type="button" class="manage-name-btn" data-open-periods="1" title="Clique para ver/editar os períodos de férias">${r.name}</button>
       <select data-field="vinculo">
         <option value="REAL"${r.vinculo==='REAL'?' selected':''}>Real</option>
         <option value="FIOTEC"${r.vinculo==='FIOTEC'?' selected':''}>Fiotec</option>
@@ -1185,13 +1264,23 @@ function manageWireRows(container, rowsData, isExcludedList){
   container.querySelectorAll(".manage-row").forEach(el=>{
     const id = el.dataset.id;
     const rowData = rowsData.find(r=>r.id===id);
+
+    el.querySelector(".manage-name-btn").addEventListener("click", ()=>{
+      const row = workingRows().find(r=>r.id===id) || allRowsRaw().find(r=>r.id===id);
+      if(!row) return;
+      manageModal.classList.remove("open");
+      resetAddModal();
+      addModal.classList.add("open");
+      selectRow(row);
+    });
+
     el.querySelectorAll("input[data-field], select[data-field]").forEach(input=>{
       input.addEventListener("change", async ()=>{
         const field = input.dataset.field;
         const value = input.value.trim();
         if(rowData.isCustom){
           const emp = customEmployees.find(e=>e.id===id);
-          if(emp){ emp[field] = field==="name" ? value : value; }
+          if(emp){ emp[field] = value; }
         } else {
           rowOverrides[id] = rowOverrides[id] || {};
           if(field==="vinculo" || field==="plataforma") rowOverrides[id][field] = value;
@@ -1366,8 +1455,7 @@ function exportRowsFor(scope){
     rows = v==="ALL" ? wr : wr.filter(r=>r.vinculo===v);
   }
   return rows.map(r=>{
-    const periods = r.periods.map(p=>({start:p.start,end:p.end}))
-      .concat(customPeriods.filter(cp=>cp.name===r.name).map(cp=>({start:cp.start,end:cp.end})));
+    const periods = getPeriodsForRow(r).map(p=>({start:p.start, end:p.end, abono:p.abono}));
     return {name:r.name, vinculo:r.vinculo, plataforma:r.plataforma, periods, status:r.status};
   }).sort((a,b)=>a.name.localeCompare(b.name,'pt'));
 }
@@ -1414,8 +1502,10 @@ document.getElementById("btnExportExcel").onclick = ()=>{
   const rows = exportRowsFor(exportScope);
   if(rows.length===0){ showToast("Nenhum colaborador nessa seleção."); return; }
   const data = rows.map(r=>{
-    const p1 = r.periods[0] ? `${fmtBR(r.periods[0].start)} a ${fmtBR(r.periods[0].end)}` : "";
-    const p2 = r.periods[1] ? `${fmtBR(r.periods[1].start)} a ${fmtBR(r.periods[1].end)}` : "";
+    const fmtP = p => p ? `${fmtBR(p.start)} a ${fmtBR(p.end)}${p.abono?' (abono)':''}` : "";
+    const p1 = fmtP(r.periods[0]);
+    const p2 = fmtP(r.periods[1]);
+    const abonoDias = sumDays(r.periods.filter(p=>p.abono).map(p=>({start:p.start,end:p.end})));
     return {
       "Colaborador": r.name,
       "Vínculo": r.vinculo,
@@ -1423,11 +1513,12 @@ document.getElementById("btnExportExcel").onclick = ()=>{
       "Nº de períodos": r.periods.length>0 ? r.periods.length : (r.status==="Pendente" ? "A definir" : 0),
       "Período 1": p1,
       "Período 2": p2,
+      "Dias em abono": abonoDias || "",
       "Situação": r.status || (r.periods.length ? "OK" : "—")
     };
   });
   const ws = XLSX.utils.json_to_sheet(data);
-  ws['!cols'] = [{wch:32},{wch:9},{wch:22},{wch:14},{wch:22},{wch:22},{wch:12}];
+  ws['!cols'] = [{wch:32},{wch:9},{wch:22},{wch:14},{wch:24},{wch:24},{wch:12},{wch:12}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Solicitação Férias");
   XLSX.writeFile(wb, "solicitacao_ferias_latim_2027.xlsx");
@@ -1463,7 +1554,7 @@ document.getElementById("btnExportPdf").onclick = ()=>{
       r.periods.forEach((p,i)=>{
         const days = Math.round((parseISO(p.end)-parseISO(p.start))/86400000)+1;
         doc.setFont("helvetica","bold"); doc.text(`Período ${i+1}:`, 26, y);
-        doc.setFont("helvetica","normal"); doc.text(`${fmtBR(p.start)} a ${fmtBR(p.end)}  (${days} dias)`, 55, y);
+        doc.setFont("helvetica","normal"); doc.text(`${fmtBR(p.start)} a ${fmtBR(p.end)}  (${days} dias)${p.abono?'  — abono pecuniário':''}`, 55, y);
         y+=8;
       });
       y+=6;
@@ -1496,9 +1587,11 @@ function markDirty(){
 
 function applyLoadedState(s){
   customPeriods = s.customPeriods || [];
+  customPeriods.forEach(cp=>{ if(!cp.pid) cp.pid = newId(); }); // backfill para dados salvos antes do editor de períodos
   customEmployees = s.customEmployees || [];
   rowOverrides = s.rowOverrides || {};
   excludedIds = s.excludedIds || {};
+  periodOverrides = s.periodOverrides || {};
   if(s.settings && s.settings.time) document.getElementById("notifTime").value = s.settings.time;
 }
 
@@ -1566,7 +1659,7 @@ async function saveState(){
   if(!hasClaudeStorage) return;
   try{
     const t = document.getElementById("notifTime").value;
-    const payload = { customPeriods, customEmployees, rowOverrides, excludedIds, settings:{time:t} };
+    const payload = { customPeriods, customEmployees, rowOverrides, excludedIds, periodOverrides, settings:{time:t} };
     await window.storage.set("planner_state", JSON.stringify(payload), false);
   }catch(e){ console.error("storage error", e); }
 }
@@ -1574,7 +1667,7 @@ async function saveSettings(){ await saveState(); }
 
 function buildDataFilePayload(){
   const t = document.getElementById("notifTime").value;
-  return { customPeriods, customEmployees, rowOverrides, excludedIds, settings:{time:t}, savedAt: new Date().toISOString() };
+  return { customPeriods, customEmployees, rowOverrides, excludedIds, periodOverrides, settings:{time:t}, savedAt: new Date().toISOString() };
 }
 
 // ---------- modal: publicar atualização ----------
