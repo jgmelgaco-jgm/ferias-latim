@@ -5,14 +5,16 @@
       "vinculo": "FIOTEC",
       "plataforma": "Operacional",
       "start": "2027-07-19",
-      "end": "2027-08-02"
+      "end": "2027-08-02",
+      "pid": "custom_1789071497722_1"
     }
   ],
   "customEmployees": [],
   "rowOverrides": {},
   "excludedIds": {},
+  "periodOverrides": {},
   "settings": {
     "time": "09:30"
   },
-  "savedAt": "2026-09-10T19:52:54.716Z"
+  "savedAt": "2026-09-10T20:18:25.289Z"
 }
