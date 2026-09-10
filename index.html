@@ -236,6 +236,8 @@
   .tag.real{ color:var(--lab-dark); border-color:#BFE0DA; background:#EDF7F5; }
   .tag.fiotec{ color:#7A5B1E; border-color:#EAD9A6; background:#FBF3DC; }
   .tag.pend{ color:var(--pend); border-color:#EAD9A6; background:var(--pend-bg); }
+  .tag.incompleto{ color:#B3402F; border-color:#E3B3A9; background:#FBEAE6; }
+  .tag.excesso{ color:#fff; border-color:var(--alert); background:var(--alert); }
 
   .track{
     grid-column: 2 / span 12;
@@ -357,6 +359,12 @@
   }
   .restore-btn:hover{ background:#F1F8F7; }
   .empty-hint{ padding:14px 10px; color:var(--ink-soft); font-size:12.5px; }
+  .present-range-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:9px 12px; border-bottom:1px solid var(--line-soft); font-size:13px;
+  }
+  .present-range-row:last-child{ border-bottom:none; }
+  .present-range-row .days{ font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); }
 
   /* ---------- Add period: search + 2 períodos ---------- */
   .search-results{
@@ -420,6 +428,7 @@
     </div>
     <div class="head-meta">
       <span class="save-status" id="saveStatus">Ainda não publicado neste site</span>
+      <button class="pill-btn" id="btnAllPresent">📅 Todos presentes</button>
       <button class="pill-btn" id="btnSettings"><span class="dot off" id="notifDot"></span> Lembretes</button>
       <button class="pill-btn" id="btnManage">Gerenciar colaboradores</button>
       <button class="pill-btn primary" id="btnAdd">Períodos de férias</button>
@@ -510,6 +519,24 @@
 
     <div class="modal-actions">
       <button class="btn-solid" id="cancelAdd">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: todos presentes -->
+<div class="modal-backdrop" id="allPresentModal">
+  <div class="modal">
+    <h3>Períodos com todos presentes</h3>
+    <p class="sub">Janelas de 2027 em que nenhum colaborador está de férias — mesmo que em períodos diferentes ao longo do ano. Boas datas para reuniões gerais do LATIM.</p>
+    <div class="note" id="allPresentSummary" style="margin-bottom:12px;"></div>
+    <div id="allPresentList" class="manage-table" style="max-height:320px;"></div>
+    <div class="note" style="margin-top:10px;">
+      Abono pecuniário não conta como ausência aqui — só períodos de férias de verdade bloqueiam uma janela.
+      Dias úteis = segunda a sexta, descontando feriados nacionais de 2027 (não inclui pontos facultativos como
+      Carnaval ou Corpus Christi). A lista recalcula toda vez que você abre este painel.
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="closeAllPresent">Fechar</button>
     </div>
   </div>
 </div>
@@ -793,6 +820,77 @@ function conflictKeySet(conflicts){
   return set;
 }
 
+// Janelas do ano em que ninguém está de férias (abono não conta como ausência) — boas datas para reunião geral.
+function computeAllPresentRanges(){
+  const yearStart = new Date(YEAR,0,1), yearEnd = new Date(YEAR,11,31);
+  let intervals = allEntries().map(e=>{
+    let s = parseISO(e.start), en = parseISO(e.end);
+    if(s < yearStart) s = yearStart;
+    if(en > yearEnd) en = yearEnd;
+    return [s,en];
+  }).filter(([s,en])=> s<=en);
+
+  intervals.sort((a,b)=>a[0]-b[0]);
+
+  const merged = [];
+  intervals.forEach(([s,en])=>{
+    if(merged.length){
+      const last = merged[merged.length-1];
+      const adjacent = new Date(last[1].getTime()+86400000);
+      if(s <= adjacent){
+        if(en > last[1]) last[1] = en;
+        return;
+      }
+    }
+    merged.push([s,en]);
+  });
+
+  const free = [];
+  let cursor = yearStart;
+  merged.forEach(([s,en])=>{
+    if(s > cursor){
+      const gapEnd = new Date(s.getTime()-86400000);
+      if(gapEnd >= cursor) free.push([new Date(cursor), gapEnd]);
+    }
+    if(en >= cursor) cursor = new Date(en.getTime()+86400000);
+  });
+  if(cursor <= yearEnd) free.push([cursor, yearEnd]);
+
+  return free.map(([s,e])=>({
+    start: `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}`,
+    end: `${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}`,
+    days: Math.round((e-s)/86400000)+1,
+    businessDays: countBusinessDays(s,e)
+  }));
+}
+
+// Feriados nacionais de 2027 (fixos + Sexta-feira Santa, calculada pela Páscoa). Não inclui pontos facultativos
+// como Carnaval e Corpus Christi — avise se quiser considerá-los também.
+const HOLIDAYS_2027 = new Set([
+  "2027-01-01", // Confraternização Universal
+  "2027-03-26", // Sexta-feira Santa
+  "2027-04-21", // Tiradentes
+  "2027-05-01", // Dia do Trabalho
+  "2027-09-07", // Independência do Brasil
+  "2027-10-12", // Nossa Senhora Aparecida
+  "2027-11-02", // Finados
+  "2027-11-15", // Proclamação da República
+  "2027-11-20", // Dia Nacional de Zumbi e da Consciência Negra
+  "2027-12-25", // Natal
+]);
+function isoOf(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+function countBusinessDays(start, end){
+  let count = 0;
+  const d = new Date(start);
+  while(d <= end){
+    const wd = d.getDay(); // 0=domingo, 6=sábado
+    if(wd !== 0 && wd !== 6 && !HOLIDAYS_2027.has(isoOf(d))) count++;
+    d.setDate(d.getDate()+1);
+  }
+  return count;
+}
+
 function renderLegend(){
   const el = document.getElementById("legend");
   el.innerHTML = "";
@@ -870,19 +968,22 @@ function renderBoard(){
 
       // períodos: base (com edições) + lançados no app, já sem os removidos
       const periods = getPeriodsForRow(r);
-      // pendente = marcado assim na origem, ou colaborador incluído pelo app que ainda não recebeu período —
-      // não qualquer linha da planilha original que simplesmente não tinha dado preenchido
-      const awaitingSchedule = (r.status === "Pendente" || r.isCustom) && periods.length === 0;
+      const totalDays = sumDays(periods.map(p=>({start:p.start,end:p.end})));
+
+      // status por dias totais: 0 = pendente · <30 = incompleto (falta completar, mesmo com abono) · >30 = excesso · 30 = OK (sem tag)
+      let statusTag = "";
+      if(totalDays===0) statusTag = '<span class="tag pend">PENDENTE</span>';
+      else if(totalDays<30) statusTag = '<span class="tag incompleto">INCOMPLETO</span>';
+      else if(totalDays>30) statusTag = '<span class="tag excesso">EXCESSO</span>';
 
       const tagVinc = r.vinculo==="REAL" ? '<span class="tag real">REAL</span>' : '<span class="tag fiotec">FIOTEC</span>';
-      const tagPend = awaitingSchedule ? '<span class="tag pend">PENDENTE</span>' : "";
-      row.innerHTML = `<div class="who"><div class="nm">${r.name}</div><div class="tags">${tagVinc}${tagPend}</div></div>`;
+      row.innerHTML = `<div class="who"><div class="nm">${r.name}</div><div class="tags">${tagVinc}${statusTag}</div></div>`;
 
       const track = document.createElement("div");
       track.className = "track";
       for(let i=0;i<12;i++){ const c=document.createElement("div"); c.className="gcell"; track.appendChild(c); }
 
-      if(awaitingSchedule){
+      if(totalDays===0){
         const bar = document.createElement("div");
         bar.className = "bar pending";
         bar.style.left = "2%"; bar.style.width="16%";
@@ -1319,6 +1420,38 @@ document.getElementById("manageSearch").addEventListener("input",(e)=>{
   manageSearchTerm = e.target.value;
   renderManageModal();
 });
+
+// ---------- modal: todos presentes ----------
+const allPresentModal = document.getElementById("allPresentModal");
+function renderAllPresentModal(){
+  const list = document.getElementById("allPresentList");
+  const summary = document.getElementById("allPresentSummary");
+  const ranges = computeAllPresentRanges();
+
+  const totalBusinessDays2027 = countBusinessDays(new Date(YEAR,0,1), new Date(YEAR,11,31));
+  const freeBusinessDays = ranges.reduce((s,r)=>s+r.businessDays,0);
+  summary.textContent = `2027 tem ${totalBusinessDays2027} dias úteis no total — ${freeBusinessDays} deles caem dentro de janelas com todos presentes.`;
+
+  if(ranges.length===0){
+    list.innerHTML = '<div class="empty-hint">Não há janela em 2027 sem ninguém de férias.</div>';
+    return;
+  }
+  list.innerHTML = ranges.map(r=>{
+    const corridos = r.days===1 ? "1 dia corrido" : `${r.days} dias corridos`;
+    const uteis = r.businessDays===1 ? "1 dia útil" : `${r.businessDays} dias úteis`;
+    return `
+    <div class="present-range-row">
+      <span>${fmtBR(r.start)} a ${fmtBR(r.end)}</span>
+      <span class="days">${corridos} · ${uteis}</span>
+    </div>`;
+  }).join("");
+}
+document.getElementById("btnAllPresent").onclick = ()=>{
+  renderAllPresentModal();
+  allPresentModal.classList.add("open");
+};
+document.getElementById("closeAllPresent").onclick = ()=> allPresentModal.classList.remove("open");
+
 document.getElementById("btnNewEmployeeRow").onclick = async ()=>{
   const id = newId();
   customEmployees.push({id, name:"Novo colaborador", vinculo:"REAL", plataforma: PLATFORM_ORDER[0]});
