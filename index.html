@@ -494,18 +494,50 @@
 <div class="modal-backdrop" id="saveModal">
   <div class="modal">
     <h3>Publicar atualização</h3>
-    <p class="sub">Este site é uma página estática do GitHub Pages — as alterações feitas aqui ficam só no seu navegador até você publicar o arquivo de dados no repositório.</p>
+    <p class="sub">Este site é uma página estática do GitHub Pages. Com um token de acesso, o botão abaixo publica direto no seu repositório — sem precisar baixar e subir arquivo manualmente.</p>
     <div class="note" id="saveModalLastInfo"></div>
-    <div class="note" style="margin-top:10px;">
-      1. Clique em "Baixar planner-data.json" abaixo.<br>
-      2. Abra o repositório <b>ferias-latim</b> no GitHub.<br>
-      3. Clique no arquivo <b>planner-data.json</b> existente (ou em "Add file → Upload files" se ainda não existir).<br>
-      4. Arraste o arquivo baixado para substituir o antigo e clique em <b>Commit changes</b>.<br>
-      5. Em 1–2 minutos o GitHub Pages atualiza e quem abrir o link já vê os dados novos, com a data de publicação visível no topo.
+
+    <div class="field" style="margin-top:14px;">
+      <label>Token de acesso do GitHub (fine-grained, só para este repositório)</label>
+      <input type="password" id="ghToken" placeholder="github_pat_…">
     </div>
+    <div class="field" style="display:flex; align-items:center; gap:7px;">
+      <input type="checkbox" id="ghRemember" style="width:auto;">
+      <label for="ghRemember" style="margin:0; font-size:12px;">Lembrar neste navegador (fica só no seu computador)</label>
+    </div>
+
+    <button type="button" class="link-btn" id="toggleGhAdvanced" style="margin:4px 0 10px;">configurações avançadas (repositório / branch)</button>
+    <div id="ghAdvanced" style="display:none;">
+      <div class="field-row">
+        <div class="field"><label>Usuário/organização</label><input type="text" id="ghOwner" value="jgmelgaco-jgm"></div>
+        <div class="field"><label>Repositório</label><input type="text" id="ghRepo" value="ferias-latim"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Branch</label><input type="text" id="ghBranch" value="main"></div>
+        <div class="field"><label>Caminho do arquivo</label><input type="text" id="ghPath" value="planner-data.json"></div>
+      </div>
+    </div>
+
+    <div class="note">
+      Não tem um token ainda? No GitHub: <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens
+      → Generate new token</b>. Em "Repository access", escolha "Only select repositories" e marque só o
+      <b>ferias-latim</b>. Em "Permissions → Repository permissions", defina <b>Contents: Read and write</b>. Copie o
+      token gerado e cole aqui — ele só é mostrado uma vez pelo GitHub.
+    </div>
+
+    <details style="margin-top:10px;">
+      <summary style="cursor:pointer; font-size:12px; color:var(--ink-soft);">Prefiro baixar e subir manualmente</summary>
+      <div class="note" style="margin-top:8px;">
+        1. Baixe o arquivo. 2. Abra o repositório no GitHub. 3. Substitua <b>planner-data.json</b> pelo baixado. 4. Commit.
+      </div>
+      <div class="modal-actions" style="justify-content:flex-start; margin-top:8px;">
+        <button class="btn-ghost" id="downloadDataFile">Baixar planner-data.json</button>
+      </div>
+    </details>
+
     <div class="modal-actions">
       <button class="btn-ghost" id="cancelSave">Fechar</button>
-      <button class="btn-solid" id="downloadDataFile">Baixar planner-data.json</button>
+      <button class="btn-solid" id="publishGithub">Publicar direto no GitHub</button>
     </div>
   </div>
 </div>
@@ -1534,14 +1566,41 @@ function buildDataFilePayload(){
 
 // ---------- modal: publicar atualização ----------
 const saveModal = document.getElementById("saveModal");
+const GH_CONFIG_KEY = "latim_gh_config";
+const GH_TOKEN_KEY = "latim_gh_token";
+
+function loadGhConfigFromBrowser(){
+  try{
+    const cfg = localStorage.getItem(GH_CONFIG_KEY);
+    if(cfg){
+      const c = JSON.parse(cfg);
+      if(c.owner) document.getElementById("ghOwner").value = c.owner;
+      if(c.repo) document.getElementById("ghRepo").value = c.repo;
+      if(c.branch) document.getElementById("ghBranch").value = c.branch;
+      if(c.path) document.getElementById("ghPath").value = c.path;
+    }
+    const tok = localStorage.getItem(GH_TOKEN_KEY);
+    if(tok){
+      document.getElementById("ghToken").value = tok;
+      document.getElementById("ghRemember").checked = true;
+    }
+  }catch(e){ /* localStorage indisponível — segue sem preencher */ }
+}
+
 document.getElementById("btnSave").onclick = ()=>{
   const info = document.getElementById("saveModalLastInfo");
   info.textContent = dataMeta.savedAt
     ? `Última publicação neste site: ${fmtDateTimeBR(dataMeta.savedAt)}.`
     : "Este site ainda não tem nenhuma publicação — será a primeira.";
+  loadGhConfigFromBrowser();
   saveModal.classList.add("open");
 };
 document.getElementById("cancelSave").onclick = ()=> saveModal.classList.remove("open");
+document.getElementById("toggleGhAdvanced").onclick = (e)=>{
+  const box = document.getElementById("ghAdvanced");
+  box.style.display = box.style.display==="none" ? "block" : "none";
+};
+
 document.getElementById("downloadDataFile").onclick = ()=>{
   const payload = buildDataFilePayload();
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
@@ -1556,6 +1615,79 @@ document.getElementById("downloadDataFile").onclick = ()=>{
   renderSaveStatus();
   saveModal.classList.remove("open");
   showToast("Arquivo baixado — agora suba no GitHub para publicar.");
+};
+
+function b64EncodeUtf8(str){
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+document.getElementById("publishGithub").onclick = async ()=>{
+  const token = document.getElementById("ghToken").value.trim();
+  const owner = document.getElementById("ghOwner").value.trim();
+  const repo = document.getElementById("ghRepo").value.trim();
+  const branch = document.getElementById("ghBranch").value.trim() || "main";
+  const path = document.getElementById("ghPath").value.trim() || "planner-data.json";
+  if(!token){ showToast("Cole seu token do GitHub."); return; }
+  if(!owner || !repo){ showToast("Preencha usuário e repositório."); return; }
+
+  const remember = document.getElementById("ghRemember").checked;
+  try{
+    if(remember){
+      localStorage.setItem(GH_CONFIG_KEY, JSON.stringify({owner,repo,branch,path}));
+      localStorage.setItem(GH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(GH_TOKEN_KEY);
+    }
+  }catch(e){ /* sem localStorage — segue sem lembrar */ }
+
+  const btn = document.getElementById("publishGithub");
+  const originalLabel = btn.textContent;
+  btn.textContent = "Publicando…"; btn.disabled = true;
+
+  try{
+    const payload = buildDataFilePayload();
+    const content = b64EncodeUtf8(JSON.stringify(payload, null, 2));
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
+
+    let sha = null;
+    const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" }
+    });
+    if(getRes.ok){
+      const info = await getRes.json();
+      sha = info.sha;
+    } else if(getRes.status !== 404){
+      const err = await getRes.json().catch(()=>({}));
+      throw new Error(`Não consegui ler o arquivo atual (${getRes.status}). ${err.message||""}`);
+    }
+
+    const body = {
+      message: `Atualização do planner de férias — ${new Date().toLocaleString('pt-BR')}`,
+      content, branch
+    };
+    if(sha) body.sha = sha;
+
+    const putRes = await fetch(apiUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    if(!putRes.ok){
+      const err = await putRes.json().catch(()=>({}));
+      throw new Error(`GitHub recusou a publicação (${putRes.status}). ${err.message||"Confira o token e as permissões."}`);
+    }
+
+    dataMeta.savedAt = payload.savedAt;
+    dataMeta.source = "github";
+    renderSaveStatus();
+    saveModal.classList.remove("open");
+    showToast("Publicado direto no GitHub. Em 1–2 min o site atualiza.");
+  }catch(err){
+    console.error(err);
+    showToast("Erro ao publicar: " + err.message);
+  }finally{
+    btn.textContent = originalLabel; btn.disabled = false;
+  }
 };
 
 function populatePlatformDatalist(){
