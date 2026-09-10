@@ -16,14 +16,25 @@
       "start": "2027-12-06",
       "end": "2027-12-20",
       "abono": false
+    },
+    {
+      "pid": "custom_1789072863408_1",
+      "name": "Ana Beatriz Teixeira Frederico",
+      "vinculo": "FIOTEC",
+      "plataforma": "Nanoformulaçao",
+      "start": "2027-05-16",
+      "end": "2027-05-25",
+      "abono": true
     }
   ],
   "customEmployees": [],
   "rowOverrides": {},
-  "excludedIds": {},
+  "excludedIds": {
+    "base_7": true
+  },
   "periodOverrides": {},
   "settings": {
     "time": "09:30"
   },
-  "savedAt": "2026-09-10T20:25:18.899Z"
+  "savedAt": "2026-09-10T20:42:05.565Z"
 }
