@@ -86,6 +86,13 @@
     background:var(--lab); color:#fff; border-color:var(--lab);
   }
   .pill-btn.primary:hover{background:var(--lab-dark);}
+  .pill-btn.save{ border-color:#C9A227; }
+  .pill-btn.save:hover{ background:#FBF3DC; }
+  .save-status{
+    font-size:11.5px; color:var(--ink-soft); font-family:var(--mono);
+    padding:6px 2px;
+  }
+  .save-status.pending{ color:var(--pend); }
   .dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
   .dot.on{background:var(--ok);}
   .dot.off{background:#B7BEBB;}
@@ -385,9 +392,11 @@
       <p>Calendário por plataforma, com verificação automática de sobreposição e lembretes de início/fim.</p>
     </div>
     <div class="head-meta">
+      <span class="save-status" id="saveStatus">Ainda não publicado neste site</span>
       <button class="pill-btn" id="btnSettings"><span class="dot off" id="notifDot"></span> Lembretes</button>
       <button class="pill-btn" id="btnManage">Gerenciar colaboradores</button>
       <button class="pill-btn primary" id="btnAdd">+ Adicionar período</button>
+      <button class="pill-btn save" id="btnSave">💾 Salvar alterações</button>
     </div>
   </div>
 </header>
@@ -477,6 +486,26 @@
     <div class="modal-actions">
       <button class="btn-ghost" id="cancelAdd">Cancelar</button>
       <button class="btn-solid" id="confirmAdd">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: publicar atualização -->
+<div class="modal-backdrop" id="saveModal">
+  <div class="modal">
+    <h3>Publicar atualização</h3>
+    <p class="sub">Este site é uma página estática do GitHub Pages — as alterações feitas aqui ficam só no seu navegador até você publicar o arquivo de dados no repositório.</p>
+    <div class="note" id="saveModalLastInfo"></div>
+    <div class="note" style="margin-top:10px;">
+      1. Clique em "Baixar planner-data.json" abaixo.<br>
+      2. Abra o repositório <b>ferias-latim</b> no GitHub.<br>
+      3. Clique no arquivo <b>planner-data.json</b> existente (ou em "Add file → Upload files" se ainda não existir).<br>
+      4. Arraste o arquivo baixado para substituir o antigo e clique em <b>Commit changes</b>.<br>
+      5. Em 1–2 minutos o GitHub Pages atualiza e quem abrir o link já vê os dados novos, com a data de publicação visível no topo.
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelSave">Fechar</button>
+      <button class="btn-solid" id="downloadDataFile">Baixar planner-data.json</button>
     </div>
   </div>
 </div>
@@ -1420,7 +1449,76 @@ document.getElementById("btnExportPdf").onclick = ()=>{
 };
 
 // ---------- persistence ----------
+let dataMeta = { savedAt: null, source: null }; // source: 'file' | 'browser' | null
+const hasClaudeStorage = (typeof window !== "undefined") && !!window.storage && typeof window.storage.get === "function";
+
+function applyLoadedState(s){
+  customPeriods = s.customPeriods || [];
+  customEmployees = s.customEmployees || [];
+  rowOverrides = s.rowOverrides || {};
+  excludedIds = s.excludedIds || {};
+  if(s.settings && s.settings.time) document.getElementById("notifTime").value = s.settings.time;
+}
+
+function fmtDateTimeBR(iso){
+  if(!iso) return null;
+  const d = new Date(iso);
+  if(isNaN(d)) return null;
+  return d.toLocaleDateString('pt-BR') + " às " + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function renderSaveStatus(){
+  const el = document.getElementById("saveStatus");
+  if(dataMeta.savedAt){
+    el.textContent = `Publicado em ${fmtDateTimeBR(dataMeta.savedAt)}`;
+    el.classList.remove("pending");
+  } else {
+    el.textContent = "Ainda não publicado neste site";
+    el.classList.add("pending");
+  }
+}
+
+// Tenta carregar dados publicados em planner-data.json (mesma pasta da página) —
+// é isso que faz o GitHub Pages exibir os mesmos dados para qualquer visitante.
+async function loadFromDataFile(){
+  try{
+    const res = await fetch("planner-data.json", {cache:"no-store"});
+    if(!res.ok) return false;
+    const s = await res.json();
+    applyLoadedState(s);
+    dataMeta.savedAt = s.savedAt || null;
+    dataMeta.source = "file";
+    return true;
+  }catch(e){ return false; }
+}
+
+// Fallback: memória local do Claude (só existe dentro do preview do Claude, não no GitHub Pages)
+async function loadFromClaudeStorage(){
+  if(!hasClaudeStorage) return false;
+  try{
+    const r = await window.storage.get("planner_state", false);
+    if(r && r.value){
+      applyLoadedState(JSON.parse(r.value));
+      dataMeta.source = "browser";
+      return true;
+    }
+  }catch(e){ /* nada salvo ainda */ }
+  return false;
+}
+
+async function loadState(){
+  const fromFile = await loadFromDataFile();
+  if(!fromFile) await loadFromClaudeStorage();
+  if(Notification && Notification.permission==="granted"){
+    document.getElementById("notifDot").classList.remove("off");
+    document.getElementById("notifDot").classList.add("on");
+  }
+  renderSaveStatus();
+}
+
+// Salva no armazenamento do Claude quando disponível (não existe no GitHub Pages — silenciosamente ignorado)
 async function saveState(){
+  if(!hasClaudeStorage) return;
   try{
     const t = document.getElementById("notifTime").value;
     const payload = { customPeriods, customEmployees, rowOverrides, excludedIds, settings:{time:t} };
@@ -1428,23 +1526,37 @@ async function saveState(){
   }catch(e){ console.error("storage error", e); }
 }
 async function saveSettings(){ await saveState(); }
-async function loadState(){
-  try{
-    const r = await window.storage.get("planner_state", false);
-    if(r && r.value){
-      const s = JSON.parse(r.value);
-      customPeriods = s.customPeriods || [];
-      customEmployees = s.customEmployees || [];
-      rowOverrides = s.rowOverrides || {};
-      excludedIds = s.excludedIds || {};
-      if(s.settings && s.settings.time) document.getElementById("notifTime").value = s.settings.time;
-    }
-  }catch(e){ /* nada salvo ainda */ }
-  if(Notification && Notification.permission==="granted"){
-    document.getElementById("notifDot").classList.remove("off");
-    document.getElementById("notifDot").classList.add("on");
-  }
+
+function buildDataFilePayload(){
+  const t = document.getElementById("notifTime").value;
+  return { customPeriods, customEmployees, rowOverrides, excludedIds, settings:{time:t}, savedAt: new Date().toISOString() };
 }
+
+// ---------- modal: publicar atualização ----------
+const saveModal = document.getElementById("saveModal");
+document.getElementById("btnSave").onclick = ()=>{
+  const info = document.getElementById("saveModalLastInfo");
+  info.textContent = dataMeta.savedAt
+    ? `Última publicação neste site: ${fmtDateTimeBR(dataMeta.savedAt)}.`
+    : "Este site ainda não tem nenhuma publicação — será a primeira.";
+  saveModal.classList.add("open");
+};
+document.getElementById("cancelSave").onclick = ()=> saveModal.classList.remove("open");
+document.getElementById("downloadDataFile").onclick = ()=>{
+  const payload = buildDataFilePayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "planner-data.json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  dataMeta.savedAt = payload.savedAt;
+  dataMeta.source = "file";
+  renderSaveStatus();
+  saveModal.classList.remove("open");
+  showToast("Arquivo baixado — agora suba no GitHub para publicar.");
+};
 
 function populatePlatformDatalist(){
   const dl = document.getElementById("platformDatalist");
