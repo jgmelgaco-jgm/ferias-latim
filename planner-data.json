@@ -7,6 +7,15 @@
       "start": "2027-07-19",
       "end": "2027-08-02",
       "pid": "custom_1789071497722_1"
+    },
+    {
+      "pid": "custom_1789071904324_2",
+      "name": "Ryann de Souza Nascimento",
+      "vinculo": "FIOTEC",
+      "plataforma": "Operacional",
+      "start": "2027-12-06",
+      "end": "2027-12-20",
+      "abono": false
     }
   ],
   "customEmployees": [],
@@ -16,5 +25,5 @@
   "settings": {
     "time": "09:30"
   },
-  "savedAt": "2026-09-10T20:24:15.534Z"
+  "savedAt": "2026-09-10T20:25:18.899Z"
 }
