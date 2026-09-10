@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planner de Férias — LATIM 2027</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2B2D;
+    --ink-soft:#4C6163;
+    --paper:#EFF3F1;
+    --panel:#FFFFFF;
+    --line: #D7E0DD;
+    --line-soft:#E6ECE9;
+    --lab: #2F6F6B;
+    --lab-dark:#204B48;
+    --alert:#B3402F;
+    --alert-bg:#FBEAE6;
+    --ok:#3C7A4E;
+    --ok-bg:#E9F4EC;
+    --pend:#9A7B1F;
+    --pend-bg:#FBF3DC;
+    --radius: 10px;
+    --serif: "Source Serif Pro","Iowan Old Style","Georgia",serif;
+    --sans: "IBM Plex Sans","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono: "IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:#C7E3DF;}
+
+  /* ---------- Header ---------- */
+  header.app-head{
+    padding:28px clamp(16px,3vw,40px) 18px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#F6F8F6,var(--paper));
+  }
+  .head-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .head-title h1{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:26px;
+    margin:0 0 4px;
+    letter-spacing:.2px;
+    color:var(--lab-dark);
+  }
+  .head-title p{
+    margin:0;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    max-width:520px;
+  }
+  .head-meta{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  .pill-btn{
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:var(--ink);
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:13px;
+    font-family:var(--sans);
+    cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;
+    transition:border-color .15s, background .15s;
+  }
+  .pill-btn:hover{border-color:var(--lab); background:#F1F8F7;}
+  .pill-btn.primary{
+    background:var(--lab); color:#fff; border-color:var(--lab);
+  }
+  .pill-btn.primary:hover{background:var(--lab-dark);}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+  .dot.on{background:var(--ok);}
+  .dot.off{background:#B7BEBB;}
+
+  /* ---------- Controls ---------- */
+  .controls{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    padding:16px clamp(16px,3vw,40px);
+    border-bottom:1px solid var(--line-soft);
+    background:var(--panel);
+  }
+  select, input[type=text]{
+    font-family:var(--sans);
+    font-size:13px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:8px 10px;
+    background:#fff;
+    color:var(--ink);
+  }
+  select:focus, input:focus{outline:2px solid #BFE0DA; outline-offset:1px;}
+  .seg{
+    display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  .seg button{
+    border:none; background:#fff; padding:8px 13px; font-size:13px; font-family:var(--sans);
+    cursor:pointer; color:var(--ink-soft); border-right:1px solid var(--line);
+  }
+  .seg button:last-child{border-right:none;}
+  .seg button.active{background:var(--lab); color:#fff;}
+  .grow{flex:1; min-width:140px;}
+
+  /* Legend */
+  .legend{
+    display:flex; flex-wrap:wrap; gap:6px 10px;
+    padding:12px clamp(16px,3vw,40px);
+    background:var(--panel);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .legend-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11.5px; color:var(--ink-soft);
+    border:1px solid transparent;
+    padding:4px 8px 4px 6px; border-radius:7px; cursor:pointer;
+    user-select:none;
+  }
+  .legend-chip:hover{border-color:var(--line);}
+  .legend-chip.isolated{border-color:var(--lab); color:var(--ink); background:#F1F8F7;}
+  .legend-chip.dimmed{opacity:.35;}
+  .legend-swatch{width:12px;height:12px;border-radius:3px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);}
+
+  /* ---------- Alerts ---------- */
+  .alerts{
+    margin:16px clamp(16px,3vw,40px) 0;
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .alerts.has-conflict{border-color:#E3B3A9;}
+  .alerts-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px;
+    background:var(--ok-bg);
+    color:var(--ok);
+    font-size:13px;
+    cursor:default;
+  }
+  .alerts.has-conflict .alerts-head{background:var(--alert-bg); color:var(--alert); cursor:pointer;}
+  .alerts-head strong{font-weight:600;}
+  .alerts-body{display:none; background:#fff;}
+  .alerts-body.open{display:block;}
+  .alert-item{
+    padding:11px 16px; border-top:1px solid var(--line-soft);
+    font-size:12.8px; color:var(--ink);
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .alert-item b{color:var(--alert);}
+  .alert-item .rule{color:var(--ink-soft); font-size:11.5px;}
+
+  /* ---------- Gantt ---------- */
+  .board-wrap{
+    margin:16px clamp(16px,3vw,40px) 40px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--panel);
+    overflow:hidden;
+  }
+  .board-scroll{ overflow-x:auto; }
+  .board{ min-width:980px; }
+
+  .month-row{
+    display:grid;
+    grid-template-columns: 220px repeat(12,1fr);
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:3; background:var(--panel);
+  }
+  .month-row .corner{
+    padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-soft); border-right:1px solid var(--line);
+    display:flex; align-items:center;
+  }
+  .month-cell{
+    padding:10px 6px; text-align:center; font-size:11.5px; color:var(--ink-soft);
+    border-right:1px solid var(--line-soft);
+    font-family:var(--mono);
+  }
+  .month-cell:last-child{border-right:none;}
+  .month-cell.current{color:var(--lab-dark); font-weight:600;}
+
+  .platform-group + .platform-group{ border-top:6px solid var(--paper); }
+  .platform-label{
+    display:grid; grid-template-columns:220px 1fr;
+    background:#FAFCFB;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .platform-label .name{
+    padding:8px 14px; font-size:11.5px; font-weight:600; color:var(--lab-dark);
+    border-right:1px solid var(--line); display:flex; align-items:center; gap:7px;
+  }
+  .platform-label .fill{border-bottom:1px solid var(--line-soft);}
+
+  .row{
+    display:grid;
+    grid-template-columns: 220px repeat(12,1fr);
+    border-bottom:1px solid var(--line-soft);
+    align-items:stretch;
+  }
+  .row:hover{ background:#FBFDFC; }
+  .row.hidden-row{ display:none; }
+  .row .who{
+    padding:9px 14px; border-right:1px solid var(--line);
+    display:flex; flex-direction:column; justify-content:center; gap:2px;
+  }
+  .row .who .nm{ font-size:13px; font-weight:600; color:var(--ink); }
+  .row .who .tags{ display:flex; gap:5px; align-items:center; }
+  .tag{
+    font-size:10px; font-family:var(--mono); padding:1.5px 5px; border-radius:4px;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+  }
+  .tag.real{ color:var(--lab-dark); border-color:#BFE0DA; background:#EDF7F5; }
+  .tag.fiotec{ color:#7A5B1E; border-color:#EAD9A6; background:#FBF3DC; }
+  .tag.pend{ color:var(--pend); border-color:#EAD9A6; background:var(--pend-bg); }
+
+  .track{
+    grid-column: 2 / span 12;
+    position:relative;
+    min-height:46px;
+    display:grid;
+    grid-template-columns: repeat(12,1fr);
+  }
+  .track .gcell{ border-right:1px solid var(--line-soft); }
+  .track .gcell:last-child{ border-right:none; }
+
+  .bar{
+    position:absolute; top:8px; height:30px;
+    border-radius:7px;
+    display:flex; align-items:center;
+    padding:0 8px;
+    font-size:11px; color:var(--ink);
+    border:1px solid rgba(0,0,0,.1);
+    overflow:hidden; white-space:nowrap;
+    cursor:default;
+  }
+  .bar.conflict{ box-shadow:0 0 0 2px var(--alert); }
+  .bar .plat-badge{
+    font-family:var(--mono); font-size:9.5px; opacity:.65; margin-right:5px;
+  }
+  .bar.pending{
+    background:repeating-linear-gradient(135deg,#F4F1E7,#F4F1E7 6px,#ECE7D6 6px,#ECE7D6 12px);
+    border:1px dashed #C9B979; color:#8A742A; justify-content:center;
+  }
+
+  .today-line{
+    position:absolute; top:0; bottom:0; width:2px; background:var(--lab);
+    opacity:.55; z-index:2;
+  }
+
+  .tooltip{
+    position:fixed; z-index:50; background:var(--ink); color:#fff;
+    padding:8px 10px; border-radius:7px; font-size:11.5px; line-height:1.45;
+    pointer-events:none; max-width:240px; display:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+  }
+
+  footer{
+    padding:22px clamp(16px,3vw,40px) 40px;
+    color:var(--ink-soft); font-size:12px;
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(20,30,29,.42);
+    z-index:100; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-backdrop.open{ display:flex; }
+  .modal{
+    background:#fff; width:100%; max-width:440px; border-radius:12px;
+    padding:22px 24px 24px; box-shadow:0 20px 60px rgba(0,0,0,.25);
+  }
+  .modal h3{
+    margin:0 0 4px; font-family:var(--serif); font-size:19px; color:var(--lab-dark);
+  }
+  .modal p.sub{ margin:0 0 16px; font-size:12.5px; color:var(--ink-soft); }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .field input, .field select{ width:100%; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+  .btn-ghost{
+    border:1px solid var(--line); background:#fff; padding:9px 15px; border-radius:8px;
+    font-size:13px; cursor:pointer; color:var(--ink-soft);
+  }
+  .btn-solid{
+    border:1px solid var(--lab); background:var(--lab); color:#fff; padding:9px 16px;
+    border-radius:8px; font-size:13px; cursor:pointer;
+  }
+  .btn-solid:hover{ background:var(--lab-dark); }
+  .note{ font-size:11.5px; color:var(--ink-soft); background:#F4F7F6; border:1px solid var(--line-soft); border-radius:8px; padding:9px 11px; margin-top:4px;}
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:999px;
+    font-size:13px; z-index:200; display:none; box-shadow:0 8px 22px rgba(0,0,0,.3);
+  }
+
+  /* ---------- Manage employees modal ---------- */
+  .modal.wide{ max-width:680px; }
+  .manage-toolbar{ display:flex; gap:8px; margin-bottom:12px; }
+  .manage-toolbar input{ flex:1; }
+  .manage-table{ max-height:360px; overflow-y:auto; border:1px solid var(--line-soft); border-radius:8px; }
+  .manage-row{
+    display:grid; grid-template-columns: 1.3fr 1fr 1.3fr auto;
+    gap:8px; align-items:center; padding:8px 10px;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .manage-row:last-child{ border-bottom:none; }
+  .manage-row input, .manage-row select{ width:100%; font-size:12.5px; padding:6px 8px; }
+  .manage-row .rm-btn{
+    border:1px solid var(--line); background:#fff; color:var(--alert);
+    width:28px; height:28px; border-radius:7px; cursor:pointer; font-size:14px; line-height:1;
+  }
+  .manage-row .rm-btn:hover{ background:var(--alert-bg); }
+  .manage-section-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft);
+    padding:10px 10px 4px;
+  }
+  .manage-row.excluded{ opacity:.6; background:#FAFAFA; }
+  .restore-btn{
+    border:1px solid var(--lab); background:#fff; color:var(--lab);
+    padding:5px 10px; border-radius:7px; font-size:11.5px; cursor:pointer;
+  }
+  .restore-btn:hover{ background:#F1F8F7; }
+  .empty-hint{ padding:14px 10px; color:var(--ink-soft); font-size:12.5px; }
+
+  /* ---------- Add period: search + 2 períodos ---------- */
+  .search-results{
+    margin-top:6px; max-height:180px; overflow-y:auto;
+    border:1px solid var(--line-soft); border-radius:8px;
+    display:none;
+  }
+  .search-results.open{ display:block; }
+  .search-result-item{
+    padding:8px 10px; font-size:12.8px; cursor:pointer;
+    border-bottom:1px solid var(--line-soft);
+    display:flex; justify-content:space-between; gap:8px;
+  }
+  .search-result-item:last-child{ border-bottom:none; }
+  .search-result-item:hover{ background:#F1F8F7; }
+  .search-result-item .plat{ color:var(--ink-soft); font-size:11px; }
+  .search-result-item.new-item{ color:var(--lab-dark); font-weight:600; }
+  .selected-chip{
+    display:flex; align-items:center; justify-content:space-between;
+    background:#F1F8F7; border:1px solid var(--line); border-radius:8px;
+    padding:9px 12px; margin-bottom:12px; font-size:13px; font-weight:600; color:var(--lab-dark);
+  }
+  .link-btn{
+    border:none; background:none; color:var(--ink-soft); font-size:11.5px;
+    text-decoration:underline; cursor:pointer; font-weight:400;
+  }
+  .period-block{ margin-bottom:10px; }
+  .period-title{ font-size:12px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .period-title .optional{ font-weight:400; color:var(--ink-soft); font-size:11px; }
+  #existingDaysNote{ margin-bottom:12px; }
+  #totalDaysNote{ margin-top:2px; }
+  .note.warn{ background:var(--pend-bg); border-color:#EAD9A6; color:#7A5B1E; }
+  .note.bad{ background:var(--alert-bg); border-color:#E3B3A9; color:var(--alert); }
+  .note.good{ background:var(--ok-bg); border-color:#BFE0CB; color:var(--ok); }
+</style>
+</head>
+<body>
+
+<header class="app-head">
+  <div class="head-row">
+    <div class="head-title">
+      <h1>Planner de Férias — LATIM · 2027</h1>
+      <p>Calendário por plataforma, com verificação automática de sobreposição e lembretes de início/fim.</p>
+    </div>
+    <div class="head-meta">
+      <button class="pill-btn" id="btnSettings"><span class="dot off" id="notifDot"></span> Lembretes</button>
+      <button class="pill-btn" id="btnManage">Gerenciar colaboradores</button>
+      <button class="pill-btn primary" id="btnAdd">+ Adicionar período</button>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="seg" id="vinculoSeg">
+    <button data-v="ALL" class="active">Todos</button>
+    <button data-v="REAL">Real</button>
+    <button data-v="FIOTEC">Fiotec</button>
+  </div>
+  <select id="platformSelect">
+    <option value="ALL">Todas as plataformas</option>
+  </select>
+  <input type="text" id="searchInput" class="grow" placeholder="Buscar colaborador…">
+  <button class="pill-btn" id="btnIcs">Exportar lembretes (.ics)</button>
+  <button class="pill-btn" id="btnExport">Exportar solicitação</button>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="alerts" id="alertsBox">
+  <div class="alerts-head" id="alertsHead"><strong id="alertsTitle">Verificando sobreposições…</strong><span id="alertsToggle"></span></div>
+  <div class="alerts-body" id="alertsBody"></div>
+</div>
+
+<div class="board-wrap">
+  <div class="board-scroll">
+    <div class="board" id="board"></div>
+  </div>
+</div>
+
+<footer>
+  Desenvolvido por Juliana Melgaço - Laboratório de Tecnologia Imunológica - DEDEP - VDINV
+</footer>
+
+<datalist id="platformDatalist"></datalist>
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Modal: adicionar período -->
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <h3>Adicionar período de férias</h3>
+    <p class="sub">Busque o colaborador, informe até 2 períodos e confira o total de dias.</p>
+
+    <div class="field" id="addSearchField">
+      <label>Colaborador</label>
+      <input type="text" id="addSearchInput" placeholder="Digite o nome…" autocomplete="off">
+      <div class="search-results" id="addSearchResults"></div>
+    </div>
+
+    <div id="addSelectedBox" style="display:none;">
+      <div class="selected-chip">
+        <span id="addSelectedName"></span>
+        <button type="button" id="addClearSelection" class="link-btn">trocar</button>
+      </div>
+
+      <div id="newEmployeeFields" style="display:none;">
+        <div class="field-row">
+          <div class="field"><label>Vínculo</label>
+            <select id="newVinculo"><option value="REAL">Real</option><option value="FIOTEC">Fiotec</option></select>
+          </div>
+          <div class="field"><label>Plataforma</label><input type="text" id="newPlataforma" list="platformDatalist" placeholder="Ex: Operacional"></div>
+        </div>
+      </div>
+
+      <div class="note" id="existingDaysNote" style="display:none;"></div>
+
+      <div class="period-block">
+        <div class="period-title">Período 1</div>
+        <div class="field-row">
+          <div class="field"><label>Início</label><input type="date" id="p1Start" min="2026-01-01" max="2027-12-31"></div>
+          <div class="field"><label>Fim</label><input type="date" id="p1End" min="2026-01-01" max="2027-12-31"></div>
+        </div>
+      </div>
+      <div class="period-block">
+        <div class="period-title">Período 2 <span class="optional">(opcional — só se a folga for dividida)</span></div>
+        <div class="field-row">
+          <div class="field"><label>Início</label><input type="date" id="p2Start" min="2026-01-01" max="2027-12-31"></div>
+          <div class="field"><label>Fim</label><input type="date" id="p2End" min="2026-01-01" max="2027-12-31"></div>
+        </div>
+      </div>
+
+      <div class="note" id="totalDaysNote"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelAdd">Cancelar</button>
+      <button class="btn-solid" id="confirmAdd">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: gerenciar colaboradores -->
+<div class="modal-backdrop" id="manageModal">
+  <div class="modal wide">
+    <h3>Gerenciar colaboradores</h3>
+    <p class="sub">Mova alguém para outra plataforma ou vínculo, exclua da visualização ou cadastre uma nova pessoa (sem período de férias ainda).</p>
+    <div class="manage-toolbar">
+      <input type="text" id="manageSearch" placeholder="Buscar…">
+      <button class="pill-btn primary" id="btnNewEmployeeRow">+ Novo colaborador</button>
+    </div>
+    <div class="manage-section-title">Ativos</div>
+    <div class="manage-table" id="manageActiveList"></div>
+    <div class="manage-section-title" id="excludedTitle" style="display:none;">Excluídos</div>
+    <div class="manage-table" id="manageExcludedList"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="closeManage">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: exportar solicitação -->
+<div class="modal-backdrop" id="exportModal">
+  <div class="modal">
+    <h3>Exportar solicitação de férias</h3>
+    <p class="sub">Gera um documento com o período solicitado — para enviar ao RH e ao(à) próprio(a) colaborador(a). Indica se é 1 ou 2 períodos de férias.</p>
+    <div class="field">
+      <label>Escopo</label>
+      <div class="seg" id="exportScopeSeg" style="width:100%;">
+        <button data-scope="colaborador" class="active" style="flex:1;">Um colaborador</button>
+        <button data-scope="vinculo" style="flex:1;">Por vínculo</button>
+      </div>
+    </div>
+    <div class="field" id="exportEmployeeField">
+      <label>Colaborador</label>
+      <select id="exportEmployeeSelect"></select>
+    </div>
+    <div class="field" id="exportVinculoField" style="display:none;">
+      <label>Vínculo</label>
+      <select id="exportVinculoSelect">
+        <option value="ALL">Todos (Real + Fiotec)</option>
+        <option value="REAL">Real</option>
+        <option value="FIOTEC">Fiotec</option>
+      </select>
+    </div>
+    <div class="note" id="exportCount"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelExport">Fechar</button>
+      <button class="btn-ghost" id="btnExportExcel">Baixar Excel (.xlsx)</button>
+      <button class="btn-solid" id="btnExportPdf">Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: lembretes -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <h3>Lembretes diários</h3>
+    <p class="sub">Enquanto esta aba estiver aberta no navegador, o planner pode avisar no horário escolhido sobre início/fim de férias do dia.</p>
+    <div class="field">
+      <label>Horário do aviso</label>
+      <input type="time" id="notifTime" value="09:30">
+    </div>
+    <div class="field">
+      <button class="btn-solid" id="enableNotif" style="width:100%;">Ativar aviso no navegador</button>
+    </div>
+    <div class="note">
+      Aviso pelo navegador só funciona com a aba aberta. Para um lembrete garantido no desktop — mesmo com o
+      navegador fechado — use “Exportar lembretes (.ics)” e importe no seu app de calendário (Outlook, Google
+      Calendar ou Calendário do sistema). Cada período de férias entra como um bloco contínuo — visível em todos
+      os dias — com alarme de início no horário escolhido; o último dia entra também como um evento à parte,
+      “Fim de férias de [nome]”, com alarme próprio.
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="closeSettings">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const YEAR = 2027;
+const RAW_DATA = [{"name": "Agatha Cristine dos Santos Lucas", "vinculo": "REAL", "plataforma": "Hibridomas", "status": "OK", "periods": [{"start": "2027-04-26", "end": "2027-05-25", "carry": false}]}, {"name": "Milena Mouta Verdan França Carvalho", "vinculo": "REAL", "plataforma": "Hibridomas", "status": "OK", "periods": [{"start": "2027-08-02", "end": "2027-08-31", "carry": false}]}, {"name": "Alessandro Fonseca de Souza", "vinculo": "REAL", "plataforma": "Operacional", "status": null, "periods": []}, {"name": "Jane da Silva", "vinculo": "REAL", "plataforma": "Operacional", "status": null, "periods": []}, {"name": "Max Welber Vidal Barroso", "vinculo": "REAL", "plataforma": "Operacional", "status": null, "periods": [{"start": "2026-12-21", "end": "2027-01-19", "carry": true}]}, {"name": "Agatha Cristine dos Santos Lucas", "vinculo": "REAL", "plataforma": "Operacional", "status": "OK", "periods": [{"start": "2027-04-26", "end": "2027-05-25", "carry": false}]}, {"name": "Ryann de Souza Nascimento", "vinculo": "FIOTEC", "plataforma": "Operacional", "status": "Pendente", "periods": []}, {"name": "Tatiane Proença de Oliveira", "vinculo": "FIOTEC", "plataforma": "Operacional", "status": "Pendente", "periods": []}, {"name": "Camilla Bayma Fernandes", "vinculo": "REAL", "plataforma": "Operacional", "status": null, "periods": []}, {"name": "Alexandre Bezerra Conde Figueiredo", "vinculo": "REAL", "plataforma": "Phage Display", "status": null, "periods": []}, {"name": "Henrique Francisco Rocha", "vinculo": "FIOTEC", "plataforma": "Phage Display", "status": "OK", "periods": [{"start": "2027-04-05", "end": "2027-04-19", "carry": false}, {"start": "2027-09-08", "end": "2027-09-22", "carry": false}]}, {"name": "Ana Beatriz Teixeira Frederico", "vinculo": "FIOTEC", "plataforma": "Nanoformulaçao", "status": "OK", "periods": [{"start": "2027-04-26", "end": "2027-05-15", "carry": false}]}, {"name": "Diana Dalzy Viveiros", "vinculo": "FIOTEC", "plataforma": "Nanoformulaçao", "status": "OK", "periods": [{"start": "2027-10-13", "end": "2027-10-27", "carry": false}]}, {"name": "Ester de Andrade Barreto", "vinculo": "REAL", "plataforma": "Nanoformulaçao", "status": null, "periods": []}, {"name": "Fabiana Cristina Rodrigues", "vinculo": "FIOTEC", "plataforma": "Nanoformulaçao", "status": "06/03-20/03", "periods": [{"start": "2027-09-15", "end": "2027-09-29", "carry": false}]}, {"name": "Felipe Soares Coelho", "vinculo": "FIOTEC", "plataforma": "Nanoformulaçao", "status": "OK", "periods": [{"start": "2027-08-16", "end": "2027-09-04", "carry": false}]}, {"name": "Nina Valério Barreira", "vinculo": "FIOTEC", "plataforma": "Nanoformulaçao", "status": "OK", "periods": [{"start": "2027-01-04", "end": "2027-01-23", "carry": false}, {"start": "2027-05-17", "end": "2027-05-26", "carry": false}]}, {"name": "Tamires Bomfim Santos Pereira", "vinculo": "FIOTEC", "plataforma": "Nanoformulaçao", "status": "OK", "periods": [{"start": "2027-04-01", "end": "2027-04-20", "carry": false}, {"start": "2027-11-03", "end": "2027-11-12", "carry": false}]}, {"name": "Ana Rodrigues de Andrade", "vinculo": "REAL", "plataforma": "Bioprocessos", "status": null, "periods": []}, {"name": "Guillermo Marini", "vinculo": "REAL", "plataforma": "Bioprocessos", "status": "OK", "periods": [{"start": "2027-01-02", "end": "2027-01-11", "carry": false}, {"start": "2027-06-11", "end": "2027-06-30", "carry": false}]}, {"name": "Andrea Marques Vieira da Silva", "vinculo": "REAL", "plataforma": "Imunogenetica/ELISA", "status": null, "periods": []}, {"name": "Camilla Bayma Fernandes", "vinculo": "REAL", "plataforma": "Imunogenetica/ELISA", "status": null, "periods": []}, {"name": "Caroline de Carvalho", "vinculo": "FIOTEC", "plataforma": "Imunogenetica/ELISA", "status": "OK", "periods": [{"start": "2027-03-16", "end": "2027-03-25", "carry": false}, {"start": "2027-09-08", "end": "2027-09-27", "carry": false}]}, {"name": "Lorenna Carvalho da Rosa", "vinculo": "FIOTEC", "plataforma": "Imunogenetica/ELISA", "status": "OK", "periods": [{"start": "2027-04-01", "end": "2027-04-20", "carry": false}, {"start": "2027-10-13", "end": "2027-10-22", "carry": false}]}, {"name": "Thiago Santos Chaves", "vinculo": "FIOTEC", "plataforma": "RNA", "status": "OK", "periods": [{"start": "2027-07-12", "end": "2027-07-31", "carry": false}]}, {"name": "Emily Hime Miranda", "vinculo": "FIOTEC", "plataforma": "Gestão da Qualidade", "status": "OK", "periods": [{"start": "2027-09-01", "end": "2027-09-30", "carry": false}]}, {"name": "Peterson Almeida da Silva", "vinculo": "FIOTEC", "plataforma": "Gestão da Qualidade", "status": "Pendente", "periods": []}, {"name": "Juliana Gil Melgaço", "vinculo": "REAL", "plataforma": "Chefia", "status": null, "periods": []}, {"name": "Luciana Neves Tubarão", "vinculo": "REAL", "plataforma": "Ensaios Funcionais", "status": null, "periods": []}, {"name": "Renan Galuzo Alves de Carvalho Jorge", "vinculo": "FIOTEC", "plataforma": "Ensaios Funcionais", "status": "OK", "periods": [{"start": "2027-01-04", "end": "2027-01-23", "carry": false}]}, {"name": "Vanessa Pimenta Rocha", "vinculo": "FIOTEC", "plataforma": "Ensaios Funcionais", "status": "OK", "periods": []}, {"name": "Carolina Baeta Salvador Varady", "vinculo": "FIOTEC", "plataforma": "Ensaios Funcionais", "status": "OK", "periods": [{"start": "2027-08-17", "end": "2027-08-31", "carry": false}, {"start": "2027-12-01", "end": "2027-12-15", "carry": false}]}, {"name": "Raysa Silva de Souza", "vinculo": "FIOTEC", "plataforma": "Biomol", "status": "OK", "periods": [{"start": "2027-04-05", "end": "2027-04-19", "carry": false}, {"start": "2027-09-13", "end": "2027-09-27", "carry": false}]}, {"name": "Talita da Silva França", "vinculo": "FIOTEC", "plataforma": "Biomol", "status": "OK", "periods": [{"start": "2027-05-12", "end": "2027-05-26", "carry": false}, {"start": "2027-10-13", "end": "2027-10-27", "carry": false}]}, {"name": "Renata Maria dos Santos", "vinculo": "FIOTEC", "plataforma": "Controle Qualidade", "status": "OK", "periods": [{"start": "2027-04-06", "end": "2027-04-20", "carry": false}, {"start": "2027-09-08", "end": "2027-09-22", "carry": false}]}, {"name": "Natália Plínio de Souza", "vinculo": "FIOTEC", "plataforma": "Controle Qualidade", "status": "OK", "periods": [{"start": "2027-02-01", "end": "2027-03-02", "carry": false}]}];
+
+const PLATFORM_COLORS = {
+  "Hibridomas": "#D9F1FF",
+  "Operacional": "#E5FFE5",
+  "Phage Display": "#EFEFFF",
+  "Nanoformulaçao": "#FEEDE8",
+  "Bioprocessos": "#E5FFFF",
+  "Imunogenetica/ELISA": "#FFFFDD",
+  "RNA": "#D9F1FF",
+  "Gestão da Qualidade": "#E5FFE5",
+  "Chefia": "#EFEFFF",
+  "Ensaios Funcionais": "#FEEDE8",
+  "Biomol": "#FFFFDD",
+  "Controle Qualidade": "#E5FFFF"
+};
+const PLATFORM_BORDER = {
+  "Hibridomas": "#5FA8C7","RNA": "#2F6F6B",
+  "Operacional": "#5FA36B","Gestão da Qualidade": "#8A742A",
+  "Phage Display": "#7A7AC9","Chefia": "#B3402F",
+  "Nanoformulaçao": "#D18464","Ensaios Funcionais": "#B0673F",
+  "Bioprocessos": "#3E9797","Controle Qualidade": "#1F6E6E",
+  "Imunogenetica/ELISA": "#B8A23B","Biomol": "#8D7A1E"
+};
+const PLATFORM_ORDER = ["Hibridomas","Operacional","Phage Display","Nanoformulaçao","Bioprocessos",
+  "Imunogenetica/ELISA","RNA","Gestão da Qualidade","Chefia","Ensaios Funcionais","Biomol","Controle Qualidade"];
+const SPECIAL_TRIO = ["Guillermo","Milena","Peterson"];
+const MONTHS = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+RAW_DATA.forEach((r,i)=>{ r.id = "base_"+i; });
+
+let customPeriods = [];   // {name, vinculo, plataforma, start, end}
+let customEmployees = []; // {id, name, vinculo, plataforma} — pessoas incluídas sem período ainda
+let rowOverrides = {};    // baseRowId -> {vinculo?, plataforma?}
+let excludedIds = {};     // rowId -> true (colaborador excluído da visualização)
+let state = { vinculo: "ALL", platform: "ALL", search: "", isolatedPlatform: null };
+let idCounter = 0;
+function newId(){ idCounter++; return "custom_"+Date.now()+"_"+idCounter; }
+
+function platColor(p){ return PLATFORM_COLORS[p] || "#EAEAEA"; }
+function platBorder(p){ return PLATFORM_BORDER[p] || "#999"; }
+function platBadge(p){
+  const words = p.split(/[\s\/]+/).filter(Boolean);
+  if(words.length===1) return words[0].slice(0,3).toUpperCase();
+  return words.map(w=>w[0]).join("").slice(0,3).toUpperCase();
+}
+function dayOfYear(d){
+  const start = new Date(d.getFullYear(),0,1);
+  return Math.floor((d-start)/86400000)+1;
+}
+function daysInYear(y){ return ((y%4===0 && y%100!==0)||y%400===0) ? 366:365; }
+function fmtBR(iso){
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+function parseISO(iso){
+  const [y,m,d] = iso.split("-").map(Number);
+  return new Date(y,m-1,d);
+}
+
+function allRowsRaw(){
+  const base = RAW_DATA.map(r=>{
+    const ov = rowOverrides[r.id] || {};
+    return {
+      id:r.id, name:r.name, status:r.status, periods:r.periods,
+      vinculo: ov.vinculo || r.vinculo,
+      plataforma: ov.plataforma || r.plataforma,
+      isCustom:false,
+      excluded: !!excludedIds[r.id]
+    };
+  });
+  const custom = customEmployees.map(e=>({
+    id:e.id, name:e.name, status:null, periods:[],
+    vinculo:e.vinculo, plataforma:e.plataforma,
+    isCustom:true,
+    excluded: !!excludedIds[e.id]
+  }));
+  return base.concat(custom);
+}
+function workingRows(){ return allRowsRaw().filter(r=>!r.excluded); }
+
+function allEntries(){
+  const list = [];
+  workingRows().forEach(row=>{
+    row.periods.forEach(p=>{
+      list.push({name:row.name, vinculo:row.vinculo, plataforma:row.plataforma, start:p.start, end:p.end, carry:p.carry, custom:false});
+    });
+    customPeriods.filter(cp=>cp.name===row.name).forEach(p=>{
+      list.push({...p, plataforma:row.plataforma, vinculo:row.vinculo, custom:true});
+    });
+  });
+  return list;
+}
+
+function overlapDays(aS,aE,bS,bE){
+  const s = new Date(Math.max(aS,bS));
+  const e = new Date(Math.min(aE,bE));
+  const diff = Math.round((e-s)/86400000)+1;
+  return Math.max(0,diff);
+}
+
+function computeConflicts(){
+  const entries = allEntries().map(e=>({...e, sD:parseISO(e.start), eD:parseISO(e.end)}));
+  const conflicts = [];
+  for(let i=0;i<entries.length;i++){
+    for(let j=i+1;j<entries.length;j++){
+      const a=entries[i], b=entries[j];
+      if(a.name===b.name) continue;
+      const samePlatform = a.plataforma===b.plataforma;
+      const bothSpecial = SPECIAL_TRIO.includes(a.name) && SPECIAL_TRIO.includes(b.name);
+      if(!samePlatform && !bothSpecial) continue;
+      const od = overlapDays(a.sD,a.eD,b.sD,b.eD);
+      if(od>7){
+        conflicts.push({a,b,days:od, rule: (bothSpecial && !samePlatform) ? "Regra do trio Guillermo / Milena / Peterson" : `Mesma plataforma — ${a.plataforma}`});
+      }
+    }
+  }
+  return conflicts;
+}
+
+function conflictKeySet(conflicts){
+  const set = new Set();
+  conflicts.forEach(c=>{
+    set.add(c.a.name+"|"+c.a.start+"|"+c.a.end);
+    set.add(c.b.name+"|"+c.b.start+"|"+c.b.end);
+  });
+  return set;
+}
+
+function renderLegend(){
+  const el = document.getElementById("legend");
+  el.innerHTML = "";
+  PLATFORM_ORDER.forEach(p=>{
+    const chip = document.createElement("div");
+    chip.className = "legend-chip" + (state.isolatedPlatform===p ? " isolated":"") + (state.isolatedPlatform && state.isolatedPlatform!==p ? " dimmed":"");
+    chip.innerHTML = `<span class="legend-swatch" style="background:${platColor(p)}"></span>${p}`;
+    chip.onclick = ()=>{
+      state.isolatedPlatform = state.isolatedPlatform===p ? null : p;
+      renderAll();
+    };
+    el.appendChild(chip);
+  });
+}
+
+function renderPlatformSelect(){
+  const sel = document.getElementById("platformSelect");
+  const current = sel.value;
+  sel.innerHTML = '<option value="ALL">Todas as plataformas</option>' +
+    PLATFORM_ORDER.map(p=>`<option value="${p}">${p}</option>`).join("");
+  sel.value = current || "ALL";
+}
+
+function todayInYear(){
+  const now = new Date();
+  return now.getFullYear()===YEAR ? now : null;
+}
+
+function renderBoard(){
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+
+  // month header
+  const monthRow = document.createElement("div");
+  monthRow.className = "month-row";
+  const today = todayInYear();
+  const curMonth = today ? today.getMonth() : -1;
+  monthRow.innerHTML = `<div class="corner">Colaborador</div>` +
+    MONTHS.map((m,i)=>`<div class="month-cell${i===curMonth?' current':''}">${m}</div>`).join("");
+  board.appendChild(monthRow);
+
+  const conflicts = computeConflicts();
+  const conflictKeys = conflictKeySet(conflicts);
+
+  const wr = workingRows();
+
+  // group by platform, preserving PLATFORM_ORDER then any extras
+  const platformsPresent = [...new Set(wr.map(r=>r.plataforma))];
+  const ordered = PLATFORM_ORDER.filter(p=>platformsPresent.includes(p)).concat(platformsPresent.filter(p=>!PLATFORM_ORDER.includes(p)));
+
+  ordered.forEach(platform=>{
+    if(state.platform!=="ALL" && state.platform!==platform) return;
+    if(state.isolatedPlatform && state.isolatedPlatform!==platform) return;
+
+    let rowsForPlatform = wr.filter(r=>r.plataforma===platform);
+
+    // apply filters
+    const visibleRows = rowsForPlatform.filter(r=>{
+      if(state.vinculo!=="ALL" && r.vinculo!==state.vinculo) return false;
+      if(state.search && !r.name.toLowerCase().includes(state.search.toLowerCase())) return false;
+      return true;
+    });
+    if(visibleRows.length===0) return;
+
+    const groupWrap = document.createElement("div");
+    groupWrap.className = "platform-group";
+    const label = document.createElement("div");
+    label.className = "platform-label";
+    label.innerHTML = `<div class="name"><span class="legend-swatch" style="background:${platColor(platform)}"></span>${platform}</div><div class="fill"></div>`;
+    groupWrap.appendChild(label);
+
+    visibleRows.forEach(r=>{
+      const row = document.createElement("div");
+      row.className = "row";
+      const tagVinc = r.vinculo==="REAL" ? '<span class="tag real">REAL</span>' : '<span class="tag fiotec">FIOTEC</span>';
+      const tagPend = r.status==="Pendente" ? '<span class="tag pend">PENDENTE</span>' : "";
+      row.innerHTML = `<div class="who"><div class="nm">${r.name}</div><div class="tags">${tagVinc}${tagPend}</div></div>`;
+
+      const track = document.createElement("div");
+      track.className = "track";
+      for(let i=0;i<12;i++){ const c=document.createElement("div"); c.className="gcell"; track.appendChild(c); }
+
+      // periods: base + custom for this name
+      const periods = r.periods.map(p=>({...p}))
+        .concat(customPeriods.filter(cp=>cp.name===r.name).map(cp=>({start:cp.start,end:cp.end,carry:false})));
+
+      if(periods.length===0 && r.status==="Pendente"){
+        const bar = document.createElement("div");
+        bar.className = "bar pending";
+        bar.style.left = "2%"; bar.style.width="16%";
+        bar.textContent = "a definir";
+        track.appendChild(bar);
+      }
+
+      periods.forEach(p=>{
+        const sD = parseISO(p.start), eD = parseISO(p.end);
+        const clipStart = sD.getFullYear()<YEAR ? new Date(YEAR,0,1) : sD;
+        const clipEnd = eD.getFullYear()>YEAR ? new Date(YEAR,11,31) : eD;
+        const total = daysInYear(YEAR);
+        const left = (dayOfYear(clipStart)-1)/total*100;
+        const width = Math.max((dayOfYear(clipEnd)-dayOfYear(clipStart)+1)/total*100, 1.2);
+        const isConflict = conflictKeys.has(r.name+"|"+p.start+"|"+p.end);
+        const bar = document.createElement("div");
+        bar.className = "bar" + (isConflict? " conflict":"");
+        bar.style.left = left+"%";
+        bar.style.width = width+"%";
+        bar.style.background = platColor(platform);
+        bar.style.borderColor = platBorder(platform);
+        bar.innerHTML = `<span class="plat-badge">${platBadge(platform)}</span>${fmtBR(p.start)}–${fmtBR(p.end)}`;
+        bar.addEventListener("mousemove", (ev)=>showTooltip(ev, r.name, platform, p, isConflict));
+        bar.addEventListener("mouseleave", hideTooltip);
+        track.appendChild(bar);
+      });
+
+      if(today){
+        const total = daysInYear(YEAR);
+        const left = (dayOfYear(today)-1)/total*100;
+        const line = document.createElement("div");
+        line.className = "today-line";
+        line.style.left = left+"%";
+        track.appendChild(line);
+      }
+
+      row.appendChild(track);
+      groupWrap.appendChild(row);
+    });
+
+    board.appendChild(groupWrap);
+  });
+}
+
+function showTooltip(ev, name, platform, p, isConflict){
+  const tip = document.getElementById("tooltip");
+  let extra = "";
+  if(p.carry) extra = "<br>Início no ano anterior.";
+  if(isConflict) extra += "<br><b style='color:#FFB199'>Sobreposição acima de 7 dias detectada.</b>";
+  tip.innerHTML = `<b>${name}</b><br>${platform}<br>${fmtBR(p.start)} → ${fmtBR(p.end)}${extra}`;
+  tip.style.display = "block";
+  tip.style.left = (ev.clientX+14)+"px";
+  tip.style.top = (ev.clientY+14)+"px";
+}
+function hideTooltip(){ document.getElementById("tooltip").style.display="none"; }
+
+function renderAlerts(){
+  const conflicts = computeConflicts();
+  const head = document.getElementById("alertsHead");
+  const title = document.getElementById("alertsTitle");
+  const box = document.getElementById("alertsBox");
+  const body = document.getElementById("alertsBody");
+  const toggle = document.getElementById("alertsToggle");
+
+  if(conflicts.length===0){
+    box.classList.remove("has-conflict");
+    title.textContent = "Nenhuma sobreposição acima de 7 dias.";
+    toggle.textContent = "";
+    body.innerHTML = "";
+    body.classList.remove("open");
+    head.onclick = null;
+  } else {
+    box.classList.add("has-conflict");
+    title.textContent = `${conflicts.length} sobreposição(ões) acima de 7 dias`;
+    toggle.textContent = "▾";
+    body.innerHTML = conflicts.map(c=>`
+      <div class="alert-item">
+        <span><b>${c.a.name}</b> (${fmtBR(c.a.start)}–${fmtBR(c.a.end)}) e <b>${c.b.name}</b> (${fmtBR(c.b.start)}–${fmtBR(c.b.end)}) — ${c.days} dias em comum</span>
+        <span class="rule">${c.rule}</span>
+      </div>`).join("");
+    head.onclick = ()=> body.classList.toggle("open");
+  }
+}
+
+function renderAll(){
+  renderLegend();
+  renderBoard();
+  renderAlerts();
+}
+
+// ---------- controls ----------
+document.getElementById("vinculoSeg").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button"); if(!btn) return;
+  [...e.currentTarget.children].forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  state.vinculo = btn.dataset.v;
+  renderAll();
+});
+document.getElementById("platformSelect").addEventListener("change",(e)=>{
+  state.platform = e.target.value;
+  state.isolatedPlatform = null;
+  renderAll();
+});
+document.getElementById("searchInput").addEventListener("input",(e)=>{
+  state.search = e.target.value;
+  renderAll();
+});
+
+// ---------- add period modal ----------
+const addModal = document.getElementById("addModal");
+let addSelected = null; // {mode:'existing'|'new', id, name, vinculo, plataforma}
+
+function daysOfPeriod(p){ return Math.round((parseISO(p.end)-parseISO(p.start))/86400000)+1; }
+function sumDays(periods){ return periods.reduce((s,p)=>s+daysOfPeriod(p),0); }
+function periodsOverlap(a,b){
+  return parseISO(a.start) <= parseISO(b.end) && parseISO(b.start) <= parseISO(a.end);
+}
+function existingPeriodsForRow(row){
+  return row.periods.map(p=>({start:p.start,end:p.end}))
+    .concat(customPeriods.filter(cp=>cp.name===row.name).map(cp=>({start:cp.start,end:cp.end})));
+}
+
+function resetAddModal(){
+  addSelected = null;
+  document.getElementById("addSearchInput").value = "";
+  document.getElementById("addSearchResults").classList.remove("open");
+  document.getElementById("addSearchResults").innerHTML = "";
+  document.getElementById("addSearchField").style.display = "block";
+  document.getElementById("addSelectedBox").style.display = "none";
+  document.getElementById("newEmployeeFields").style.display = "none";
+  document.getElementById("newPlataforma").value = "";
+  ["p1Start","p1End","p2Start","p2End"].forEach(id=> document.getElementById(id).value = "");
+  document.getElementById("existingDaysNote").style.display = "none";
+  document.getElementById("totalDaysNote").textContent = "";
+  document.getElementById("totalDaysNote").className = "note";
+}
+
+function renderAddSearchResults(query){
+  const box = document.getElementById("addSearchResults");
+  const q = query.trim().toLowerCase();
+  if(!q){ box.classList.remove("open"); box.innerHTML=""; return; }
+  const wr = workingRows().filter(r=>r.name.toLowerCase().includes(q)).slice(0,8);
+  let html = wr.map(r=>`<div class="search-result-item" data-id="${r.id}"><span>${r.name}</span><span class="plat">${r.plataforma}</span></div>`).join("");
+  html += `<div class="search-result-item new-item" data-new="1">+ Cadastrar novo colaborador: “${query.trim()}”</div>`;
+  box.innerHTML = html;
+  box.classList.add("open");
+  box.querySelectorAll(".search-result-item").forEach(item=>{
+    item.addEventListener("click", ()=>{
+      if(item.dataset.new){
+        selectNewEmployee(query.trim());
+      } else {
+        const row = workingRows().find(r=>r.id===item.dataset.id);
+        selectExistingEmployee(row);
+      }
+    });
+  });
+}
+
+function selectExistingEmployee(row){
+  addSelected = {mode:"existing", id:row.id, name:row.name, vinculo:row.vinculo, plataforma:row.plataforma};
+  document.getElementById("addSearchField").style.display = "none";
+  document.getElementById("addSelectedBox").style.display = "block";
+  document.getElementById("addSelectedName").textContent = `${row.name} — ${row.plataforma} (${row.vinculo})`;
+  document.getElementById("newEmployeeFields").style.display = "none";
+
+  const existing = existingPeriodsForRow(row);
+  const noteEl = document.getElementById("existingDaysNote");
+  if(existing.length===0){
+    noteEl.style.display = "none";
+  } else {
+    const totalExisting = sumDays(existing);
+    const list = existing.map(p=>`${fmtBR(p.start)}–${fmtBR(p.end)}`).join(", ");
+    noteEl.style.display = "block";
+    noteEl.className = "note";
+    noteEl.textContent = `Já cadastrado: ${totalExisting} dia(s) em ${existing.length} período(s) — ${list}.`;
+  }
+  recomputeAddTotal();
+}
+
+function selectNewEmployee(name){
+  addSelected = {mode:"new", name, vinculo:"REAL", plataforma:""};
+  document.getElementById("addSearchField").style.display = "none";
+  document.getElementById("addSelectedBox").style.display = "block";
+  document.getElementById("addSelectedName").textContent = `${name} (novo colaborador)`;
+  document.getElementById("newEmployeeFields").style.display = "block";
+  document.getElementById("existingDaysNote").style.display = "none";
+  recomputeAddTotal();
+}
+
+document.getElementById("addClearSelection").onclick = ()=>{
+  resetAddModal();
+  document.getElementById("addSearchInput").focus();
+};
+
+function recomputeAddTotal(){
+  const noteEl = document.getElementById("totalDaysNote");
+  if(!addSelected){ noteEl.textContent=""; noteEl.className="note"; return; }
+
+  const existing = addSelected.mode==="existing"
+    ? existingPeriodsForRow(workingRows().find(r=>r.id===addSelected.id))
+    : [];
+  const existingTotal = sumDays(existing);
+
+  const p1s = document.getElementById("p1Start").value, p1e = document.getElementById("p1End").value;
+  const p2s = document.getElementById("p2Start").value, p2e = document.getElementById("p2End").value;
+
+  let parts = [`já cadastrado: ${existingTotal}d`];
+  let newPeriods = [];
+  let error = null;
+
+  if(p1s && p1e){
+    if(parseISO(p1e) < parseISO(p1s)) error = "Período 1: data de fim antes do início.";
+    else { const d = daysOfPeriod({start:p1s,end:p1e}); newPeriods.push({start:p1s,end:p1e}); parts.push(`período 1: ${d}d`); }
+  } else if(p1s || p1e){
+    error = "Período 1: preencha início e fim.";
+  }
+
+  if(!error && (p2s || p2e)){
+    if(!(p2s && p2e)) error = "Período 2: preencha início e fim, ou deixe os dois vazios.";
+    else if(parseISO(p2e) < parseISO(p2s)) error = "Período 2: data de fim antes do início.";
+    else {
+      const d = daysOfPeriod({start:p2s,end:p2e});
+      const cand = {start:p2s,end:p2e};
+      if(newPeriods.length && periodsOverlap(newPeriods[0],cand)) error = "Período 1 e Período 2 se sobrepõem.";
+      else { newPeriods.push(cand); parts.push(`período 2: ${d}d`); }
+    }
+  }
+
+  if(error){
+    noteEl.textContent = error;
+    noteEl.className = "note bad";
+    return;
+  }
+
+  const newTotal = sumDays(newPeriods);
+  const grandTotal = existingTotal + newTotal;
+  const diff = 30 - grandTotal;
+  let status;
+  if(newPeriods.length===0){
+    status = "Informe pelo menos o período 1.";
+    noteEl.textContent = parts.join(" · ") + ` — ${status}`;
+    noteEl.className = "note";
+    return;
+  }
+  if(diff===0) status = `Total: ${grandTotal} dias — fecha os 30 dias.`;
+  else if(diff>0) status = `Total: ${grandTotal} dias — faltam ${diff} dia(s) para completar 30.`;
+  else status = `Total: ${grandTotal} dias — ${-diff} dia(s) a mais que os 30 permitidos.`;
+
+  noteEl.textContent = parts.join(" · ") + " · " + status;
+  noteEl.className = diff===0 ? "note good" : (diff>0 ? "note warn" : "note bad");
+}
+
+document.getElementById("addSearchInput").addEventListener("input",(e)=> renderAddSearchResults(e.target.value));
+["p1Start","p1End","p2Start","p2End"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", recomputeAddTotal);
+});
+
+document.getElementById("btnAdd").onclick = ()=>{ resetAddModal(); addModal.classList.add("open"); };
+document.getElementById("cancelAdd").onclick = ()=> addModal.classList.remove("open");
+
+document.getElementById("confirmAdd").onclick = async ()=>{
+  if(!addSelected){ showToast("Busque e selecione um colaborador."); return; }
+
+  const p1s = document.getElementById("p1Start").value, p1e = document.getElementById("p1End").value;
+  const p2s = document.getElementById("p2Start").value, p2e = document.getElementById("p2End").value;
+  if(!p1s || !p1e){ showToast("Informe o período 1."); return; }
+  if(parseISO(p1e) < parseISO(p1s)){ showToast("Período 1: fim antes do início."); return; }
+  const periodsToAdd = [{start:p1s,end:p1e}];
+  if(p2s || p2e){
+    if(!(p2s && p2e)){ showToast("Período 2: preencha início e fim, ou deixe vazio."); return; }
+    if(parseISO(p2e) < parseISO(p2s)){ showToast("Período 2: fim antes do início."); return; }
+    if(periodsOverlap(periodsToAdd[0], {start:p2s,end:p2e})){ showToast("Período 1 e 2 se sobrepõem."); return; }
+    periodsToAdd.push({start:p2s,end:p2e});
+  }
+
+  let name, vinculo, plataforma;
+  if(addSelected.mode==="new"){
+    name = addSelected.name;
+    vinculo = document.getElementById("newVinculo").value;
+    plataforma = document.getElementById("newPlataforma").value.trim();
+    if(!plataforma){ showToast("Informe a plataforma do novo colaborador."); return; }
+    if(!workingRows().some(r=>r.name===name)){
+      customEmployees.push({id:newId(), name, vinculo, plataforma});
+    }
+  } else {
+    name = addSelected.name; vinculo = addSelected.vinculo; plataforma = addSelected.plataforma;
+  }
+
+  periodsToAdd.forEach(p=> customPeriods.push({name, vinculo, plataforma, start:p.start, end:p.end}));
+  await saveState();
+  addModal.classList.remove("open");
+  renderAll();
+
+  const existing = addSelected.mode==="existing" ? existingPeriodsForRow(workingRows().find(r=>r.id===addSelected.id)) : [];
+  const total = sumDays(existing); // existing already includes what we just pushed, since workingRows/customPeriods are live
+  const diff = 30 - total;
+  const flag = diff===0 ? "30 dias completos." : (diff>0 ? `faltam ${diff} dia(s).` : `${-diff} dia(s) a mais que 30.`);
+  showToast(`${periodsToAdd.length} período(s) adicionado(s) — total ${total} dias, ${flag}`);
+};
+
+// ---------- manage employees modal ----------
+const manageModal = document.getElementById("manageModal");
+let manageSearchTerm = "";
+
+function renderManageModal(){
+  const active = document.getElementById("manageActiveList");
+  const excludedWrap = document.getElementById("manageExcludedList");
+  const excludedTitle = document.getElementById("excludedTitle");
+  const rows = allRowsRaw().filter(r=> r.name.toLowerCase().includes(manageSearchTerm.toLowerCase()));
+  const activeRows = rows.filter(r=>!r.excluded).sort((a,b)=>a.name.localeCompare(b.name,'pt'));
+  const excludedRows = rows.filter(r=>r.excluded).sort((a,b)=>a.name.localeCompare(b.name,'pt'));
+
+  active.innerHTML = activeRows.length ? activeRows.map(r=>manageRowHTML(r)).join("") :
+    '<div class="empty-hint">Nenhum colaborador encontrado.</div>';
+  manageWireRows(active, activeRows, false);
+
+  if(excludedRows.length){
+    excludedTitle.style.display = "block";
+    excludedWrap.innerHTML = excludedRows.map(r=>manageRowHTML(r,true)).join("");
+    manageWireRows(excludedWrap, excludedRows, true);
+  } else {
+    excludedTitle.style.display = "none";
+    excludedWrap.innerHTML = "";
+  }
+}
+
+function manageRowHTML(r, isExcluded){
+  const nameField = r.isCustom
+    ? `<input type="text" data-field="name" value="${r.name.replace(/"/g,'&quot;')}">`
+    : `<input type="text" value="${r.name.replace(/"/g,'&quot;')}" disabled title="Nome original da planilha — não editável">`;
+  return `
+    <div class="manage-row${isExcluded?' excluded':''}" data-id="${r.id}">
+      ${nameField}
+      <select data-field="vinculo">
+        <option value="REAL"${r.vinculo==='REAL'?' selected':''}>Real</option>
+        <option value="FIOTEC"${r.vinculo==='FIOTEC'?' selected':''}>Fiotec</option>
+      </select>
+      <input type="text" data-field="plataforma" list="platformDatalist" value="${r.plataforma.replace(/"/g,'&quot;')}">
+      ${isExcluded
+        ? `<button class="restore-btn" data-action="restore">Restaurar</button>`
+        : `<button class="rm-btn" data-action="exclude" title="Excluir da visualização">×</button>`}
+    </div>`;
+}
+
+function manageWireRows(container, rowsData, isExcludedList){
+  container.querySelectorAll(".manage-row").forEach(el=>{
+    const id = el.dataset.id;
+    const rowData = rowsData.find(r=>r.id===id);
+    el.querySelectorAll("input[data-field], select[data-field]").forEach(input=>{
+      input.addEventListener("change", async ()=>{
+        const field = input.dataset.field;
+        const value = input.value.trim();
+        if(rowData.isCustom){
+          const emp = customEmployees.find(e=>e.id===id);
+          if(emp){ emp[field] = field==="name" ? value : value; }
+        } else {
+          rowOverrides[id] = rowOverrides[id] || {};
+          if(field==="vinculo" || field==="plataforma") rowOverrides[id][field] = value;
+        }
+        await saveState();
+        renderAll();
+      });
+    });
+    const btn = el.querySelector("[data-action]");
+    if(btn){
+      btn.addEventListener("click", async ()=>{
+        if(btn.dataset.action==="exclude"){ excludedIds[id] = true; }
+        else { delete excludedIds[id]; }
+        await saveState();
+        renderManageModal();
+        renderAll();
+      });
+    }
+  });
+}
+
+document.getElementById("btnManage").onclick = ()=>{
+  manageSearchTerm = "";
+  document.getElementById("manageSearch").value = "";
+  renderManageModal();
+  manageModal.classList.add("open");
+};
+document.getElementById("closeManage").onclick = ()=> manageModal.classList.remove("open");
+document.getElementById("manageSearch").addEventListener("input",(e)=>{
+  manageSearchTerm = e.target.value;
+  renderManageModal();
+});
+document.getElementById("btnNewEmployeeRow").onclick = async ()=>{
+  const id = newId();
+  customEmployees.push({id, name:"Novo colaborador", vinculo:"REAL", plataforma: PLATFORM_ORDER[0]});
+  await saveState();
+  renderManageModal();
+  renderAll();
+  showToast("Colaborador incluído — edite o nome e a plataforma.");
+};
+
+// ---------- settings modal ----------
+const settingsModal = document.getElementById("settingsModal");
+document.getElementById("btnSettings").onclick = ()=> settingsModal.classList.add("open");
+document.getElementById("closeSettings").onclick = ()=> settingsModal.classList.remove("open");
+document.getElementById("enableNotif").onclick = async ()=>{
+  if(!("Notification" in window)){ showToast("Navegador sem suporte a notificações."); return; }
+  const perm = await Notification.requestPermission();
+  if(perm==="granted"){
+    document.getElementById("notifDot").classList.remove("off");
+    document.getElementById("notifDot").classList.add("on");
+    await saveSettings();
+    showToast("Aviso ativado nesta aba.");
+  } else {
+    showToast("Permissão negada pelo navegador.");
+  }
+};
+document.getElementById("notifTime").addEventListener("change", saveSettings);
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display="block";
+  clearTimeout(t._h);
+  t._h = setTimeout(()=> t.style.display="none", 2600);
+}
+
+// ---------- daily check ----------
+function checkDailyNotification(){
+  const timeVal = document.getElementById("notifTime").value || "09:30";
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  if(`${hh}:${mm}` !== timeVal) return;
+  const todayISO = now.toISOString().slice(0,10);
+  const flagKey = "notified_"+todayISO;
+  if(window._notifiedToday === todayISO) return;
+
+  const entries = allEntries();
+  const starting = entries.filter(e=>e.start===todayISO);
+  const ending = entries.filter(e=>e.end===todayISO);
+  if(starting.length===0 && ending.length===0) return;
+
+  window._notifiedToday = todayISO;
+  if(Notification.permission==="granted"){
+    let lines = [];
+    starting.forEach(e=> lines.push(`Início: ${e.name} (${e.plataforma})`));
+    ending.forEach(e=> lines.push(`Fim: ${e.name} (${e.plataforma})`));
+    new Notification("Férias LATIM — hoje", { body: lines.join("\n") });
+  }
+}
+setInterval(checkDailyNotification, 20000);
+
+// ---------- ICS export ----------
+function pad(n){ return String(n).padStart(2,"0"); }
+function icsDate(iso){ return iso.replace(/-/g,""); }
+function addDaysISO(iso, n){
+  const d = parseISO(iso);
+  d.setDate(d.getDate()+n);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function buildICS(){
+  const timeVal = document.getElementById("notifTime").value || "09:30";
+  const [hh,mm] = timeVal.split(":").map(Number);
+  const entries = allEntries();
+  let out = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//LATIM//Planner Ferias//PT-BR","CALSCALE:GREGORIAN"];
+  let uidCounter = 0;
+
+  entries.forEach(e=>{
+    const startDt = icsDate(e.start);
+    const endExclusiveDt = icsDate(addDaysISO(e.end, 1)); // DTEND de evento de dia inteiro é exclusivo
+    const endDt = icsDate(e.end);
+
+    // Evento 1: bloco do período inteiro — aparece todo santo dia da folga
+    uidCounter++;
+    out.push("BEGIN:VEVENT");
+    out.push(`UID:latim-ferias-periodo-${uidCounter}-${startDt}@planner`);
+    out.push(`DTSTAMP:${startDt}T000000Z`);
+    out.push(`DTSTART;VALUE=DATE:${startDt}`);
+    out.push(`DTEND;VALUE=DATE:${endExclusiveDt}`);
+    out.push(`SUMMARY:Férias — ${e.name} (${e.plataforma})`);
+    out.push("BEGIN:VALARM");
+    out.push("ACTION:DISPLAY");
+    out.push(`DESCRIPTION:Início de férias — ${e.name}`);
+    out.push(`TRIGGER;VALUE=DATE-TIME:${startDt}T${pad(hh)}${pad(mm)}00Z`);
+    out.push("END:VALARM");
+    out.push("END:VEVENT");
+
+    // Evento 2: marcador só no último dia
+    uidCounter++;
+    out.push("BEGIN:VEVENT");
+    out.push(`UID:latim-ferias-fim-${uidCounter}-${endDt}@planner`);
+    out.push(`DTSTAMP:${endDt}T000000Z`);
+    out.push(`DTSTART;VALUE=DATE:${endDt}`);
+    out.push(`DTEND;VALUE=DATE:${endExclusiveDt}`);
+    out.push(`SUMMARY:Fim de férias de ${e.name}`);
+    out.push("BEGIN:VALARM");
+    out.push("ACTION:DISPLAY");
+    out.push(`DESCRIPTION:Fim de férias — ${e.name}`);
+    out.push(`TRIGGER;VALUE=DATE-TIME:${endDt}T${pad(hh)}${pad(mm)}00Z`);
+    out.push("END:VALARM");
+    out.push("END:VEVENT");
+  });
+
+  out.push("END:VCALENDAR");
+  return out.join("\r\n");
+}
+document.getElementById("btnIcs").onclick = ()=>{
+  const blob = new Blob([buildICS()], {type:"text/calendar;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "ferias_latim_2027.ics";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Arquivo .ics baixado.");
+};
+
+// ---------- exportar solicitação ----------
+const exportModal = document.getElementById("exportModal");
+let exportScope = "colaborador";
+
+function exportRowsFor(scope){
+  const wr = workingRows();
+  let rows;
+  if(scope==="colaborador"){
+    const id = document.getElementById("exportEmployeeSelect").value;
+    rows = wr.filter(r=>r.id===id);
+  } else {
+    const v = document.getElementById("exportVinculoSelect").value;
+    rows = v==="ALL" ? wr : wr.filter(r=>r.vinculo===v);
+  }
+  return rows.map(r=>{
+    const periods = r.periods.map(p=>({start:p.start,end:p.end}))
+      .concat(customPeriods.filter(cp=>cp.name===r.name).map(cp=>({start:cp.start,end:cp.end})));
+    return {name:r.name, vinculo:r.vinculo, plataforma:r.plataforma, periods, status:r.status};
+  }).sort((a,b)=>a.name.localeCompare(b.name,'pt'));
+}
+
+function renderExportEmployeeSelect(){
+  const sel = document.getElementById("exportEmployeeSelect");
+  const wr = workingRows().slice().sort((a,b)=>a.name.localeCompare(b.name,'pt'));
+  sel.innerHTML = wr.map(r=>`<option value="${r.id}">${r.name} — ${r.plataforma}</option>`).join("");
+}
+
+function updateExportCount(){
+  const rows = exportRowsFor(exportScope);
+  const el = document.getElementById("exportCount");
+  el.textContent = rows.length===1
+    ? `1 colaborador selecionado.`
+    : `${rows.length} colaboradores selecionados.`;
+}
+
+document.getElementById("btnExport").onclick = ()=>{
+  renderExportEmployeeSelect();
+  updateExportCount();
+  exportModal.classList.add("open");
+};
+document.getElementById("cancelExport").onclick = ()=> exportModal.classList.remove("open");
+document.getElementById("exportScopeSeg").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button"); if(!btn) return;
+  [...e.currentTarget.children].forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  exportScope = btn.dataset.scope;
+  document.getElementById("exportEmployeeField").style.display = exportScope==="colaborador" ? "block":"none";
+  document.getElementById("exportVinculoField").style.display = exportScope==="vinculo" ? "block":"none";
+  updateExportCount();
+});
+document.getElementById("exportEmployeeSelect").addEventListener("change", updateExportCount);
+document.getElementById("exportVinculoSelect").addEventListener("change", updateExportCount);
+
+function periodCountLabel(n){
+  if(n===1) return "1 (um) período";
+  if(n===2) return "2 (dois) períodos";
+  return `${n} períodos`;
+}
+
+document.getElementById("btnExportExcel").onclick = ()=>{
+  const rows = exportRowsFor(exportScope);
+  if(rows.length===0){ showToast("Nenhum colaborador nessa seleção."); return; }
+  const data = rows.map(r=>{
+    const p1 = r.periods[0] ? `${fmtBR(r.periods[0].start)} a ${fmtBR(r.periods[0].end)}` : "";
+    const p2 = r.periods[1] ? `${fmtBR(r.periods[1].start)} a ${fmtBR(r.periods[1].end)}` : "";
+    return {
+      "Colaborador": r.name,
+      "Vínculo": r.vinculo,
+      "Plataforma": r.plataforma,
+      "Nº de períodos": r.periods.length>0 ? r.periods.length : (r.status==="Pendente" ? "A definir" : 0),
+      "Período 1": p1,
+      "Período 2": p2,
+      "Situação": r.status || (r.periods.length ? "OK" : "—")
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{wch:32},{wch:9},{wch:22},{wch:14},{wch:22},{wch:22},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Solicitação Férias");
+  XLSX.writeFile(wb, "solicitacao_ferias_latim_2027.xlsx");
+  showToast("Excel gerado.");
+};
+
+document.getElementById("btnExportPdf").onclick = ()=>{
+  const rows = exportRowsFor(exportScope);
+  if(rows.length===0){ showToast("Nenhum colaborador nessa seleção."); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const genDate = new Date().toLocaleDateString('pt-BR');
+
+  rows.forEach((r,idx)=>{
+    if(idx>0) doc.addPage();
+    let y = 22;
+    doc.setFont("helvetica","bold"); doc.setFontSize(13);
+    doc.text("LATIM — Laboratório de Tecnologia Imunológica", 20, y); y+=7;
+    doc.setFontSize(11); doc.setFont("helvetica","normal");
+    doc.text("Solicitação de Férias — período 2027", 20, y); y+=14;
+
+    doc.setFont("helvetica","bold"); doc.text("Colaborador:", 20, y);
+    doc.setFont("helvetica","normal"); doc.text(r.name, 62, y); y+=8;
+    doc.setFont("helvetica","bold"); doc.text("Vínculo:", 20, y);
+    doc.setFont("helvetica","normal"); doc.text(r.vinculo, 62, y); y+=8;
+    doc.setFont("helvetica","bold"); doc.text("Plataforma:", 20, y);
+    doc.setFont("helvetica","normal"); doc.text(r.plataforma, 62, y); y+=14;
+
+    if(r.periods.length===0){
+      doc.text("Período de férias ainda não definido.", 20, y); y+=10;
+    } else {
+      doc.text(`O(a) colaborador(a) acima solicita o gozo de férias em ${periodCountLabel(r.periods.length)}, conforme abaixo:`, 20, y, {maxWidth:170}); y+=12;
+      r.periods.forEach((p,i)=>{
+        const days = Math.round((parseISO(p.end)-parseISO(p.start))/86400000)+1;
+        doc.setFont("helvetica","bold"); doc.text(`Período ${i+1}:`, 26, y);
+        doc.setFont("helvetica","normal"); doc.text(`${fmtBR(p.start)} a ${fmtBR(p.end)}  (${days} dias)`, 55, y);
+        y+=8;
+      });
+      y+=6;
+    }
+
+    y = 250;
+    doc.setDrawColor(200);
+    doc.text("Data: ____ / ____ / ________", 20, y); y+=16;
+    doc.line(20, y, 100, y); doc.text("Assinatura do(a) colaborador(a)", 20, y+5); y+=20;
+    doc.line(20, y, 100, y); doc.text("Assinatura da chefia — LATIM", 20, y+5);
+
+    doc.setFontSize(8); doc.setTextColor(140);
+    doc.text(`Gerado pelo Planner de Férias LATIM em ${genDate}.`, 20, 285);
+    doc.setTextColor(0);
+  });
+
+  doc.save("solicitacao_ferias_latim_2027.pdf");
+  showToast("PDF gerado.");
+};
+
+// ---------- persistence ----------
+async function saveState(){
+  try{
+    const t = document.getElementById("notifTime").value;
+    const payload = { customPeriods, customEmployees, rowOverrides, excludedIds, settings:{time:t} };
+    await window.storage.set("planner_state", JSON.stringify(payload), false);
+  }catch(e){ console.error("storage error", e); }
+}
+async function saveSettings(){ await saveState(); }
+async function loadState(){
+  try{
+    const r = await window.storage.get("planner_state", false);
+    if(r && r.value){
+      const s = JSON.parse(r.value);
+      customPeriods = s.customPeriods || [];
+      customEmployees = s.customEmployees || [];
+      rowOverrides = s.rowOverrides || {};
+      excludedIds = s.excludedIds || {};
+      if(s.settings && s.settings.time) document.getElementById("notifTime").value = s.settings.time;
+    }
+  }catch(e){ /* nada salvo ainda */ }
+  if(Notification && Notification.permission==="granted"){
+    document.getElementById("notifDot").classList.remove("off");
+    document.getElementById("notifDot").classList.add("on");
+  }
+}
+
+function populatePlatformDatalist(){
+  const dl = document.getElementById("platformDatalist");
+  dl.innerHTML = PLATFORM_ORDER.map(p=>`<option value="${p}">`).join("");
+}
+
+// ---------- init ----------
+(async function init(){
+  renderPlatformSelect();
+  populatePlatformDatalist();
+  await loadState();
+  renderAll();
+})();
+</script>
+</body>
+</html>
