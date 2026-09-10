@@ -1125,6 +1125,7 @@ document.getElementById("confirmAdd").onclick = async ()=>{
   }
 
   periodsToAdd.forEach(p=> customPeriods.push({name, vinculo, plataforma, start:p.start, end:p.end}));
+  markDirty();
   await saveState();
   addModal.classList.remove("open");
   renderAll();
@@ -1195,6 +1196,7 @@ function manageWireRows(container, rowsData, isExcludedList){
           rowOverrides[id] = rowOverrides[id] || {};
           if(field==="vinculo" || field==="plataforma") rowOverrides[id][field] = value;
         }
+        markDirty();
         await saveState();
         renderAll();
       });
@@ -1204,6 +1206,7 @@ function manageWireRows(container, rowsData, isExcludedList){
       btn.addEventListener("click", async ()=>{
         if(btn.dataset.action==="exclude"){ excludedIds[id] = true; }
         else { delete excludedIds[id]; }
+        markDirty();
         await saveState();
         renderManageModal();
         renderAll();
@@ -1226,6 +1229,7 @@ document.getElementById("manageSearch").addEventListener("input",(e)=>{
 document.getElementById("btnNewEmployeeRow").onclick = async ()=>{
   const id = newId();
   customEmployees.push({id, name:"Novo colaborador", vinculo:"REAL", plataforma: PLATFORM_ORDER[0]});
+  markDirty();
   await saveState();
   renderManageModal();
   renderAll();
@@ -1482,7 +1486,13 @@ document.getElementById("btnExportPdf").onclick = ()=>{
 
 // ---------- persistence ----------
 let dataMeta = { savedAt: null, source: null }; // source: 'file' | 'browser' | null
+let hasUnsavedChanges = false;
 const hasClaudeStorage = (typeof window !== "undefined") && !!window.storage && typeof window.storage.get === "function";
+
+function markDirty(){
+  hasUnsavedChanges = true;
+  renderSaveStatus();
+}
 
 function applyLoadedState(s){
   customPeriods = s.customPeriods || [];
@@ -1501,7 +1511,10 @@ function fmtDateTimeBR(iso){
 
 function renderSaveStatus(){
   const el = document.getElementById("saveStatus");
-  if(dataMeta.savedAt){
+  if(hasUnsavedChanges){
+    el.textContent = "Pendente — há alterações não publicadas";
+    el.classList.add("pending");
+  } else if(dataMeta.savedAt){
     el.textContent = `Publicado em ${fmtDateTimeBR(dataMeta.savedAt)}`;
     el.classList.remove("pending");
   } else {
@@ -1612,6 +1625,7 @@ document.getElementById("downloadDataFile").onclick = ()=>{
 
   dataMeta.savedAt = payload.savedAt;
   dataMeta.source = "file";
+  hasUnsavedChanges = false;
   renderSaveStatus();
   saveModal.classList.remove("open");
   showToast("Arquivo baixado — agora suba no GitHub para publicar.");
@@ -1679,6 +1693,7 @@ document.getElementById("publishGithub").onclick = async ()=>{
 
     dataMeta.savedAt = payload.savedAt;
     dataMeta.source = "github";
+    hasUnsavedChanges = false;
     renderSaveStatus();
     saveModal.classList.remove("open");
     showToast("Publicado direto no GitHub. Em 1–2 min o site atualiza.");
