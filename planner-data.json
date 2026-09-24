@@ -73,6 +73,42 @@
       "start": "2027-12-02",
       "end": "2027-12-16",
       "abono": false
+    },
+    {
+      "pid": "custom_1790274593105_1",
+      "name": "Ester de Andrade Barreto",
+      "vinculo": "REAL",
+      "plataforma": "Nanoformulaçao",
+      "start": "2027-02-15",
+      "end": "2027-03-06",
+      "abono": false
+    },
+    {
+      "pid": "custom_1790274612732_2",
+      "name": "Ester de Andrade Barreto",
+      "vinculo": "REAL",
+      "plataforma": "Nanoformulaçao",
+      "start": "2027-11-03",
+      "end": "2027-11-12",
+      "abono": false
+    },
+    {
+      "pid": "custom_1790274725129_3",
+      "name": "Alexandre Bezerra Conde Figueiredo",
+      "vinculo": "REAL",
+      "plataforma": "Phage Display",
+      "start": "2027-01-13",
+      "end": "2027-02-01",
+      "abono": false
+    },
+    {
+      "pid": "custom_1790274737843_4",
+      "name": "Alexandre Bezerra Conde Figueiredo",
+      "vinculo": "REAL",
+      "plataforma": "Phage Display",
+      "start": "2027-07-13",
+      "end": "2027-07-22",
+      "abono": false
     }
   ],
   "customEmployees": [],
@@ -97,5 +133,5 @@
   "settings": {
     "time": "09:30"
   },
-  "savedAt": "2026-09-10T22:30:17.215Z"
+  "savedAt": "2026-09-24T18:38:25.145Z"
 }
